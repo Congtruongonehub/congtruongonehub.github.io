@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sao chép mã máy chủ</title>
+<style>body{margin:0;padding:24px 16px;background:#0e1216;color:#eef2f6;font:17px/1.5 system-ui,sans-serif}
+button{width:100%;min-height:70px;border:0;border-radius:14px;background:#ffd23f;color:#111;font:700 21px system-ui;margin:16px 0}
+#m{color:#3ddc84;font-weight:600;min-height:1.5em}textarea{width:100%;height:40vh;background:#0b0f13;color:#9aa7b4;border:1px solid #2a333d;border-radius:10px;font:12px monospace}</style></head>
+<body><h2>Mã máy chủ hồ sơ – ONEHUB BP2</h2>
+<p>Bấm nút vàng để sao chép toàn bộ mã, rồi quay lại tab Apps Script để dán.</p>
+<button id="b">Sao chép mã</button><p id="m"></p>
+<textarea id="t" readonly></textarea>
+<script>
+const t=document.getElementById('t'),m=document.getElementById('m');
+fetch('apps_script/Code.gs',{cache:'no-store'}).then(r=>r.text()).then(s=>t.value=s);
+document.getElementById('b').onclick=async()=>{try{await navigator.clipboard.writeText(t.value);m.textContent='Đã sao chép xong. Quay lại tab Apps Script để dán.';}
+catch(e){t.focus();t.select();document.execCommand('copy');m.textContent='Đã chọn toàn bộ mã. Nếu chưa sao chép được, giữ ngón tay lên khung chữ và chọn Sao chép.';}};
+</script></body></html>
