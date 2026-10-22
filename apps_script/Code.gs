@@ -1,13 +1,21 @@
 /**
  * ONEHUB BP2 – Máy chủ hồ sơ nghiệm thu (Google Apps Script)
- * Gắn vào file Google Sheets "ONEHUB BP2 – Dữ liệu hệ thống" của tài khoản dự án.
- * Lần đầu: chọn hàm setup → Chạy (Run) → cho phép quyền. Sau đó Triển khai (Deploy) dạng Ứng dụng web.
+ * Tạo dự án mới tại script.google.com bằng tài khoản dự án, dán toàn bộ mã này.
+ * Lần đầu: chọn hàm setup → Chạy (Run) → cho phép quyền. Hàm setup tự tạo file Google Sheets
+ * "ONEHUB BP2 – Dữ liệu hệ thống" và thư mục Drive. Sau đó Triển khai (Deploy) dạng Ứng dụng web.
  */
 const SHEET_HS = 'HoSo', SHEET_ND = 'NguoiDung', ROOT = 'ONEHUB BP2 - Ho so nghiem thu';
 const HS_COLS = ['ID', 'ThoiGianTai', 'CauKien', 'Moc', 'NgayNT', 'GioNT', 'KetQua', 'ThanhPhan', 'GhiChu', 'NguoiTai', 'VaiTro', 'Files', 'Buoc', 'Xong'];
 
+function ss_() {
+  const act = SpreadsheetApp.getActive(); if (act) return act;
+  const pr = PropertiesService.getScriptProperties(), id = pr.getProperty('SHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  const ss = SpreadsheetApp.create('ONEHUB BP2 – Dữ liệu hệ thống'); pr.setProperty('SHEET_ID', ss.getId()); return ss;
+}
+
 function setup() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = ss_();
   let nd = ss.getSheetByName(SHEET_ND);
   if (!nd) {
     nd = ss.insertSheet(SHEET_ND);
@@ -18,6 +26,7 @@ function setup() {
   let hs = ss.getSheetByName(SHEET_HS);
   if (!hs) { hs = ss.insertSheet(SHEET_HS); hs.appendRow(HS_COLS); hs.setFrozenRows(1); }
   root_();
+  Logger.log('Đã xong. File dữ liệu: ' + ss.getUrl());
 }
 
 function root_() {
@@ -30,7 +39,7 @@ function sub_(parent, name) {
 }
 function user_(pin) {
   if (!pin) return null;
-  const rows = SpreadsheetApp.getActive().getSheetByName(SHEET_ND).getDataRange().getValues();
+  const rows = ss_().getSheetByName(SHEET_ND).getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     const [ten, vaitro, ma, tai, hl] = rows[i];
     if (String(ma).trim() === String(pin).trim() && String(hl).trim()) return {ten, vaitro, tai: !!String(tai).trim()};
@@ -46,7 +55,7 @@ function doGet(e) {
   if (!u) return out_({ok: false, err: 'Mã PIN không đúng hoặc hết hiệu lực'});
   if (p.action === 'me') return out_({ok: true, user: u});
   if (p.action === 'list') {
-    const rows = SpreadsheetApp.getActive().getSheetByName(SHEET_HS).getDataRange().getValues();
+    const rows = ss_().getSheetByName(SHEET_HS).getDataRange().getValues();
     const recs = [];
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i]; if (p.el && r[2] !== p.el) continue;
@@ -79,7 +88,7 @@ function doPost(e) {
     const lock = LockService.getScriptLock(); lock.waitLock(20000);
     try {
       const id = 'HS-' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyMMdd-HHmmss') + '-' + Math.floor(Math.random() * 90 + 10);
-      SpreadsheetApp.getActive().getSheetByName(SHEET_HS).appendRow([id, new Date(), d.el, d.moc, "'" + (d.ngay || ''), "'" + (d.gio || ''), d.ket_qua, (d.ben || []).join('; '),
+      ss_().getSheetByName(SHEET_HS).appendRow([id, new Date(), d.el, d.moc, "'" + (d.ngay || ''), "'" + (d.gio || ''), d.ket_qua, (d.ben || []).join('; '),
         d.ghi_chu || '', u.ten, u.vaitro, JSON.stringify(d.files || []), d.step || '', d.done === undefined ? '' : !!d.done]);
       return out_({ok: true, id});
     } finally { lock.releaseLock(); }
