@@ -6,6 +6,7 @@ const SITE = {
   ver: 'Thí điểm 1 · 22/10/2026',
   src: 'Bản vẽ kết cấu RFR 29/08/2025 · Tiến độ Rev02',
   qrSize: 0.23,
+  api: '',   // địa chỉ Ứng dụng web Google Apps Script (máy chủ hồ sơ)
 };
 
 const TAGS = {

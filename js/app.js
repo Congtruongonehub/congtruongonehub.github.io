@@ -585,16 +585,105 @@ function loop() {
 }
 
 // ---------- hồ sơ nghiệm thu ----------
-function showNT() {
-  const t = TAGS[curTag], recs = NT.records.filter(r => r.el === t.el).sort((a, b) => (b.ngay + (b.gio || '')).localeCompare(a.ngay + (a.gio || '')));
-  const el = $('#nt-list');
-  el.innerHTML = recs.length ? recs.map(r => `<article class="nt"><header><b>${r.moc}</b><span>${fmtDate(r.ngay)}${r.gio ? ' · ' + r.gio : ''}</span></header>
-      <p>${r.ket_qua ? `Kết quả: <b>${r.ket_qua}</b> · ` : ''}${(r.ben || []).join(', ')}</p>
-      <div class="thumbs">${(r.anh || []).map(a => `<a href="${a}" target="_blank" rel="noopener"><img src="${a}" alt="Ảnh nghiệm thu" loading="lazy"></a>`).join('')}</div>
-      ${r.bien_ban ? `<a class="doc" href="${r.bien_ban}" target="_blank" rel="noopener">Xem biên bản đã ký</a>` : ''}</article>`).join('')
-    : `<p class="empty">Chưa có hồ sơ nghiệm thu cho cấu kiện này.<br>Ảnh, video, biên bản gửi vào nhóm Zalo nghiệm thu sẽ được trợ lý phân loại và hiện tại đây theo ngày giờ.</p>`;
-  show('v-nt');
+// Hai nguồn: data/nghiem_thu.json (trợ lý cập nhật từ Zalo) + máy chủ Google Apps Script (tải thẳng từ trang).
+const API = (typeof SITE !== 'undefined' && SITE.api) || '';
+const MOC = ['Nghiệm thu cốp pha', 'Nghiệm thu cốt thép', 'Nghiệm thu cáp DƯL', 'Nghiệm thu trước đổ bê tông', 'Đổ bê tông', 'Kéo căng cáp', 'Tháo cốp pha', 'Khác'];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const getPin = () => { try { return localStorage.getItem('pin') || ''; } catch (e) { return ''; } };
+const setPin = v => { try { v ? localStorage.setItem('pin', v) : localStorage.removeItem('pin'); } catch (e) {} };
+let me = null, apiRecs = [];
+async function api(params) { const r = await fetch(API + '?' + new URLSearchParams(params), {cache: 'no-store'}); return r.json(); }
+async function apiPost(body) { const r = await fetch(API, {method: 'POST', body: JSON.stringify(body)}); return r.json(); }
+async function loadApi(el) {
+  apiRecs = []; if (!API || !getPin()) return;
+  try { const r = await api({action: 'list', el, pin: getPin()}); if (r.ok) apiRecs = r.records; else if (/PIN/.test(r.err || '')) { setPin(''); me = null; } } catch (e) {}
 }
+function fileHtml(f) {
+  const t = f.type || '';
+  if (t.startsWith('image/')) return `<a href="${esc(f.url)}" target="_blank" rel="noopener"><img src="https://drive.google.com/thumbnail?id=${esc(f.id)}&sz=w400" alt="Ảnh nghiệm thu" loading="lazy"></a>`;
+  return `<a class="doc" href="${esc(f.url)}" target="_blank" rel="noopener">${t.startsWith('video/') ? 'Xem video' : 'Xem biên bản / tài liệu'}: ${esc(f.name)}</a>`;
+}
+async function showNT() {
+  const t = TAGS[curTag]; show('v-nt');
+  const el = $('#nt-list'); el.innerHTML = '<p class="empty">Đang tải hồ sơ…</p>';
+  await loadApi(t.el);
+  const recs = NT.records.filter(r => r.el === t.el).concat(apiRecs)
+    .sort((a, b) => (b.ngay + (b.gio || '')).localeCompare(a.ngay + (a.gio || '')));
+  const head = API ? (getPin()
+      ? `<div class="row"><button id="nt-add" class="big p" style="min-height:60px"><b>+ Thêm hồ sơ</b></button></div>`
+      : `<div class="el"><p>Nhập mã PIN do BCH cấp để xem và tải hồ sơ nghiệm thu.</p><div class="row" style="margin-top:10px"><input id="pin-in" class="inp" style="flex:2" inputmode="numeric" autocomplete="off" placeholder="Mã PIN"><button id="pin-ok">Xác nhận</button></div><p id="pin-msg" class="note"></p></div>`)
+    : '';
+  el.innerHTML = head + (recs.length ? recs.map(r => `<article class="nt"><header><b>${esc(r.moc)}</b><span>${esc(fmtDate(r.ngay || ''))}${r.gio ? ' · ' + esc(r.gio) : ''}</span></header>
+      <p>${r.ket_qua ? `Kết quả: <b>${esc(r.ket_qua)}</b> · ` : ''}${(r.ben || []).map(esc).join(', ')}</p>
+      ${r.ghi_chu ? `<p>${esc(r.ghi_chu)}</p>` : ''}
+      <div class="thumbs">${(r.anh || []).map(a => `<a href="${esc(a)}" target="_blank" rel="noopener"><img src="${esc(a)}" alt="Ảnh nghiệm thu" loading="lazy"></a>`).join('')}${(r.files || []).filter(f => (f.type || '').startsWith('image/')).map(fileHtml).join('')}</div>
+      ${(r.files || []).filter(f => !(f.type || '').startsWith('image/')).map(fileHtml).join('')}
+      ${r.bien_ban ? `<a class="doc" href="${esc(r.bien_ban)}" target="_blank" rel="noopener">Xem biên bản đã ký</a>` : ''}
+      ${r.nguoi_tai ? `<p class="note">Tải lên: ${esc(r.nguoi_tai)} (${esc(r.vai_tro)})</p>` : ''}</article>`).join('')
+    : `<p class="empty">Chưa có hồ sơ nghiệm thu cho cấu kiện này.<br>Ảnh, video, biên bản gửi vào nhóm Zalo nghiệm thu${API ? ' hoặc tải thẳng tại đây' : ''} sẽ hiện theo ngày giờ.</p>`);
+  const add = $('#nt-add'); if (add) add.onclick = showAdd;
+  const ok = $('#pin-ok'); if (ok) ok.onclick = async () => {
+    const v = $('#pin-in').value.trim(); if (!v) return; $('#pin-msg').textContent = 'Đang kiểm tra…';
+    try { const r = await api({action: 'me', pin: v}); if (r.ok) { setPin(v); me = r.user; showNT(); } else $('#pin-msg').textContent = r.err || 'Mã PIN không đúng'; }
+    catch (e) { $('#pin-msg').textContent = 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'; }
+  };
+}
+function showAdd() {
+  const now = new Date(), p2 = n => String(n).padStart(2, '0');
+  $('#nta-el').textContent = curEl.title + ' · ' + TAGS[curTag].el;
+  $('#nta-moc').innerHTML = MOC.map(m => `<option>${m}</option>`).join('');
+  $('#nta-ngay').value = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  $('#nta-gio').value = `${p2(now.getHours())}:${p2(now.getMinutes())}`;
+  $('#nta-files').value = ''; $('#nta-cam').value = ''; pending = []; renderPending(); $('#nta-msg').textContent = '';
+  show('v-nt-add');
+}
+let pending = [];
+function renderPending() {
+  $('#nta-list').innerHTML = pending.length ? pending.map((f, i) => `<li>${esc(f.name)} · ${(f.size / 1048576).toFixed(1)} MB <button data-i="${i}" aria-label="Bỏ file">×</button></li>`).join('') : '<li class="note">Chưa chọn ảnh, video hoặc biên bản.</li>';
+}
+const MAXV = 30 * 1048576;
+function addFiles(list) {
+  for (const f of list) {
+    if (f.type.startsWith('video/') && f.size > MAXV) { $('#nta-msg').textContent = `Video "${f.name}" quá 30 MB – quay ngắn dưới 1 phút.`; continue; }
+    pending.push(f);
+  }
+  renderPending();
+}
+function shrinkImage(file) {   // nén ảnh còn cạnh dài 1600 px để tải nhanh qua 4G
+  return new Promise(res => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); c.toBlob(b => res(b || file), 'image/jpeg', 0.82); };
+    img.onerror = () => { URL.revokeObjectURL(url); res(file); };
+    img.src = url;
+  });
+}
+const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+async function submitAdd() {
+  const msg = $('#nta-msg'), btn = $('#nta-send');
+  if (!pending.length) { msg.textContent = 'Cần ít nhất 1 ảnh, video hoặc biên bản.'; return; }
+  btn.disabled = true; const el = TAGS[curTag].el, moc = $('#nta-moc').value, files = [];
+  try {
+    for (let i = 0; i < pending.length; i++) {
+      const f = pending[i]; msg.textContent = `Đang tải ${i + 1}/${pending.length}: ${f.name}…`;
+      const isImg = f.type.startsWith('image/'), blob = isImg ? await shrinkImage(f) : f;
+      const name = isImg ? f.name.replace(/\.[^.]+$/, '') + '.jpg' : f.name;
+      const r = await apiPost({action: 'file', pin: getPin(), el, moc, name, type: isImg ? 'image/jpeg' : f.type, data: await b64(blob)});
+      if (!r.ok) throw new Error(r.err); files.push(r.file);
+    }
+    msg.textContent = 'Đang lưu hồ sơ…';
+    const r = await apiPost({action: 'record', pin: getPin(), el, moc, ngay: $('#nta-ngay').value, gio: $('#nta-gio').value, ket_qua: $('#nta-kq').value,
+      ben: $('#nta-ben').value.split(/[,;]/).map(s => s.trim()).filter(Boolean), ghi_chu: $('#nta-note').value.trim(), files});
+    if (!r.ok) throw new Error(r.err);
+    pending = []; btn.disabled = false; showNT();
+  } catch (e) { btn.disabled = false; msg.textContent = 'Chưa tải được: ' + (e.message || 'lỗi mạng') + '. Kiểm tra sóng rồi bấm Lưu lại.'; }
+}
+$('#nta-files').onchange = e => addFiles(e.target.files);
+$('#nta-cam').onchange = e => addFiles(e.target.files);
+$('#nta-list').onclick = e => { const b = e.target.closest('button[data-i]'); if (b) { pending.splice(+b.dataset.i, 1); renderPending(); } };
+$('#nta-send').onclick = submitAdd;
+$('#nta-back').onclick = showNT;
 
 // ---------- khởi động ----------
 $('#b-next').onclick = () => startAR('next');
