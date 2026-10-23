@@ -344,7 +344,7 @@ function buildScene(name) {
     const s1 = new THREE.Group(); s1.add(colSteel('C1-a', 3, zT4));
     if (e.lap) s1.add(box(C1.x - C1.b/2 - 0.04, C1.x + C1.b/2 + 0.04, C1.y - C1.h/2 - 0.04, C1.y + C1.h/2 + 0.04, e.lap.z0, e.lap.z2, M.lap1));
     add('L4-1', s1);
-    const alc = AL.column(C1, zT4, top); add('L4-2', alc.grp);
+    const alc = AL.column(C1, zT4, top, EDGE); add('L4-2', alc.grp);
     const als = AL.slab(beamsReg(), zT4, zT5, EDGE, 'full'); add('L4-3', als.grp);
     root.userData.bom = {'L4-2': AL.bomRows(alc.bom), 'L4-3': [['Cây chống làm việc lớn nhất', `${(als.maxU * 100).toFixed(0)}% tải cho phép V4`]].concat(AL.bomRows(als.bom))};
     add('L4-4', slabSteel('5FL'));

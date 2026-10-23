@@ -71,7 +71,7 @@ const AL = (() => {
   }
 
   // ===================== CỐT PHA CỘT =====================
-  function column(c, z0, z1) {
+  function column(c, z0, z1, edge = -1e9) {
     const grp = new THREE.Group(), bt = new Batch(), bom = {}, alu = mAlu(), pin = mPin(), st = mSteel();
     const H = z1 - z0, Wp = 2.45, top = split(H - Wp, [400, 350, 300]);
     const faces = [   // [tâm mặt (plan), pháp tuyến vào cột (world), bề rộng mặt]
@@ -128,8 +128,40 @@ const AL = (() => {
       bomAdd(bom, 'Ống thép Ø48,6 gông cột (tầng)', 0);
     }
     const pm = meshFrom(pipes, st); pm.userData.info = card('Gông cột', [['Cấu tạo', 'Ống thép Ø48,6 + cùm xà gồ (Waler bracket) ôm 4 mặt'], ['Cao độ', '+0,3 / +1,2 / +2,1 / +3,0 m từ chân cột']]);
-    grp.add(pm); bt.build(grp);
-    return {grp, bom};
+    grp.add(pm);
+    // Cây chống xiên (push-pull prop) + cây chống chân (turnbuckle) – sổ tay mục Phụ kiện; đặt ở các mặt phía trong nhà
+    // (mặt ngoài nhà không có sàn để tựa). Chân đế bắt bu lông neo vào sàn DƯL: phải tránh vùng cáp.
+    const tubeO = [], tubeI = [], plates = [], thread = [], gM = lam(0x2e9d5b, {emissive: 0x0c2a17}), gI = lam(0xdfe6ee), gP = lam(0x6d7884), gT = lam(0xf0c419);
+    const braceFaces = faces.filter(f => (f.n.x !== 0 ? (f.n.x < 0 ? c.x + c.b / 2 : c.x - c.b / 2) : (f.n.z > 0 ? c.y + c.h / 2 : c.y - c.h / 2)) > edge + 0.05 && !(f.n.x > 0 && c.x - c.b / 2 <= edge + 0.05) && !(f.n.z < 0 && c.y - c.h / 2 <= edge + 0.05));
+    const braces = [];
+    for (const f of braceFaces) {
+      const out = f.n.clone().negate(), dx = out.x, dy = -out.z;          // hướng ra ngoài mặt cột (plan)
+      const fx = f.cx + dx * (RIB + 0.06), fy = f.cy + dy * (RIB + 0.06);
+      const along = f.n.x !== 0 ? [0, 1] : [1, 0];
+      for (const [kind, hz, reach, offs] of [['push', Math.min(H - 0.4, 2.3), 1.7, [-0.25, 0.25]], ['turn', 0.45, 0.75, [0]]]) for (const o of offs) {
+        const hx = fx + along[0] * o, hy = fy + along[1] * o, bx = hx + dx * reach, by = hy + dy * reach;
+        const A = W(bx, by, z0 + 0.05), B = W(hx, hy, z0 + hz), L = A.distanceTo(B), mid = A.clone().lerp(B, 0.58), sc = A.clone().lerp(B, 0.5);
+        prismSeg(tubeO, A, mid, 0.0302); prismSeg(tubeI, mid, B, 0.0243);
+        prismSeg(thread, sc.clone().lerp(B, -0.05), sc.clone().lerp(B, 0.12), 0.033);
+        addBox(plates, bx - 0.075, bx + 0.075, z0 + 0.003, z0 + 0.015, -by - 0.075, -by + 0.075);
+        addBox(plates, hx - 0.04, hx + 0.04, z0 + hz - 0.06, z0 + hz + 0.06, -hy - 0.04, -hy + 0.04);
+        braces.push({kind, L, hz, reach, nm: f.nm});
+        bomAdd(bom, kind === 'push' ? 'Cây chống xiên (push-pull)' : 'Cây chống chân (turnbuckle)', kind === 'push' ? 16 : 6);
+      }
+    }
+    if (braces.length) {
+      const binfo = () => ({title: 'Cây chống xiên + cây chống chân cột', rows: [
+        ['Công dụng', 'Giữ ổn định và căn chỉnh độ thẳng đứng cốp pha cột (≤ H/1000) bằng ren điều chỉnh'],
+        ['Bố trí', `${braces.filter(b => b.kind === 'push').length} cây chống xiên đỡ ở cao ≈ 2,3 m, chân cách mặt cột ≈ 1,7 m; ${braces.filter(b => b.kind === 'turn').length} cây chống chân ở cao 0,45 m – các mặt: ${[...new Set(braces.map(b => b.nm))].join(', ')}`],
+        ['Đầu trên', 'Bắt vào sườn tấm vách / cùm xà gồ bằng bu lông'],
+        ['Chân đế', 'Bản đế 150×150 bắt bu lông neo vào sàn'],
+        ['LƯU Ý SÀN DƯL', 'Khoan neo chân đế phải tránh vùng cáp DƯL (đối chiếu bản vẽ cáp, đánh dấu tuyến cáp trước khi khoan) hoặc dùng neo chờ đặt sẵn trước khi đổ sàn'],
+        ['Mặt ngoài nhà', 'Không có sàn để tựa – dùng gông, ty giằng và sàn công tác bao che theo biện pháp riêng'],
+        ['Tháo', 'Tháo cùng cốp pha cột sau 12 giờ (TVGS chấp thuận)']]});
+      for (const [arr, m] of [[tubeO, gM], [tubeI, gI], [plates, gP], [thread, gT]]) { const ms = meshFrom(arr, m); ms.userData.info = binfo; grp.add(ms); }
+    }
+    bt.build(grp);
+    return {grp, bom, braces};
   }
   // Chốt ngắn RP: thân Ø16 dài 90 + mũ Ø32, trục cục bộ X (xuyên qua 2 sườn tấm kề nhau); nêm WP cắm ở đuôi chốt
   function addCylX(a, r, x0, x1, n = 8) {
@@ -261,14 +293,14 @@ const AL = (() => {
         let u = b.lo;
         for (const L of runs) {
           const [px, py] = P(u + L / 2, w0 + sw / 2), code = `DE${fmm(L)}x${fmm(sw)}`, kg = 20 * L * sw;
-          if (stage === 'full') {
+          if (stage === 'full' && !inCol(px, py, -0.1)) {
             const ex = EWb ? PX.clone() : PY.clone(), ey = EWb ? PY.clone() : PX.clone().negate();
             bt.add(panelGeo(L, sw, false), alu, mtx(W(px, py, zb), ex, ey, PZ.clone()), card(code, [['Loại', 'Tấm đáy dầm (Beam bottom slab panel)'], ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Đáy dầm', fmtLv(zb)], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`]]));
             bomAdd(bom, code, kg);
           }
           // đầu chống đặc biệt PHS + cây chống ở mỗi mối nối đáy dầm
           const [qx, qy] = P(u + L, w0 + sw / 2);
-          if (u + L < b.hi - 0.1) {
+          if (u + L < b.hi - 0.1 && !inCol(qx, qy, 0.12)) {
             const ex = EWb ? PY.clone() : PX.clone();
             bt.add(phGeo(), head, mtx(W(qx, qy, zb), ex, PZ.clone(), new THREE.Vector3().crossVectors(ex, PZ)), card(`PHS150x${sw >= 0.4 ? 420 : 320}`, [['Loại', 'Đầu chống đặc biệt – đỡ đáy dầm'], ['Dầm', `${b.did}`], ['Cây chống', 'SPP Kumkang V4']]));
             bomAdd(bom, `PHS150x${sw >= 0.4 ? 420 : 320}`, 50 * 0.15 * 0.32);
