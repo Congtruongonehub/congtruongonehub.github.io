@@ -38,7 +38,7 @@ const ELEMS = {
 // Ngày từng bước là dự kiến – BCH chỉnh tại đây khi có lịch chi tiết.
 const STEPS = {
   propsT4: [
-    {id: 'P4-1', name: 'Tháo tấm sàn sớm, giữ cây chống V4', from: '2027-01-13', to: '2027-01-15',
+    {id: 'P4-1', name: 'Cốp pha nhôm sàn T4 – tháo tấm sàn sớm, giữ cây chống V4', from: '2027-01-13', to: '2027-01-15',
       ai: 'Tổ cốp pha nhôm (NCC Kumkang / thầu phụ cốp pha), giám sát: KS hiện trường BCH', dk: 'Bê tông đủ 12 giờ (tấm đứng) và 36 giờ (tấm sàn), TVGS đồng ý bằng văn bản; mẫu nén 1 ngày đạt yêu cầu NCC', nl: '1 tổ 8–10 người/sàn điển hình; búa nhựa, dụng cụ tháo chốt, xe đẩy, máng chuyển tấm lên tầng trên', kt: 'Không có cây chống nào bị lỏng, nghiêng sau khi tháo tấm; đầu chống PH vẫn đỡ sát đáy sàn; mặt bê tông không sứt cạnh, không rỗ', at: 'Không đứng dưới vùng đang tháo; chuyển tấm bằng máng/lỗ chuyển, không ném; khu vực tháo có rào và biển báo', hs: 'Phiếu yêu cầu tháo cốp pha có TVGS ký; kết quả nén mẫu; ảnh hiện trạng sau tháo', bv: 'Bản bố trí cốp pha + cây chống của Kumkang (chờ); Sổ tay cốp pha nhôm', 
       method: ['Sau đổ 12 giờ: tháo tấm vách, cột, thành dầm (TVGS chấp thuận), tháo từ trên xuống, giữ kicker. Sau 36 giờ: tháo tấm sàn theo thứ tự chốt + nẹp → tấm sàn → dầm xương → góc sàn, GIỮ cây chống SPP + đầu chống PH (sổ tay Coteccons).',
                'Cây chống V4 dài làm việc 2,6–4,0 m; dưới sàn 220 ≈ 3,7 m, gần mức kéo dài tối đa nên chỉ chịu ≈ 12 kN/cây.',

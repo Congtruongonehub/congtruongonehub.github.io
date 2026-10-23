@@ -332,9 +332,13 @@ function buildScene(name) {
     for (const c of MD.COLS) root.add(phantomBox(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, zT3, zT4 - 0.7));
     root.add(phantomBox(EDGE, RX1, EDGE, RY1, zT4 - 0.22, zT4));
     const sc = slabConcrete(zT4, 0.12); sc.userData.only3d = true; root.add(sc);
-    const al = AL.slab(beamsReg(), zT3, zT4, EDGE, 'early'); add('P4-1', al.grp);
-    root.userData.bom = {'P4-1': AL.bomRows(al.bom)};
-    add('P4-2', slabPT('4FL'));
+    // P4-1: toàn bộ cốp pha nhôm sàn T4 đang giữ (tấm sàn, dầm xương, góc sàn, đáy + thành dầm) – đây là phần sẽ tháo sớm
+    // P4-2, P4-3: sau tháo sớm chỉ còn cây chống + đầu chống PH/PHS
+    const full = AL.slab(beamsReg(), zT3, zT4, EDGE, 'full'); add('P4-1', full.grp);
+    const al = AL.slab(beamsReg(), zT3, zT4, EDGE, 'early'); const g2 = new THREE.Group(); g2.add(al.grp); add('P4-2', g2);
+    const g3 = new THREE.Group(); g3.add(AL.slab(beamsReg(), zT3, zT4, EDGE, 'early').grp); add('P4-3', g3);
+    root.userData.bom = {'P4-1': AL.bomRows(full.bom), 'P4-2': AL.bomRows(al.bom)};
+    g2.add(slabPT('4FL'));
     root.add(label('Đáy sàn T4 ' + fmtLv(zT4 - 0.22), C1.x + 1.6, C1.y + 1.6, zT4 - 0.35));
     root.add(label('Mặt sàn T3 ' + fmtLv(zT3), C1.x + 1.6, C1.y + 1.6, zT3 + 0.15, {fg: '#cfd8e3'}));
   } else if (name === 'lift4') {
@@ -486,7 +490,7 @@ function start3D(mode) {
   const sc = curEl[mode].scene, zc = (sc === 'lift4' || sc === 'xraySlabT4' ? LV['4FL'] : LV['3FL']) + 2.0;
   let tgt, pos;
   if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
-  else if (sc === 'propsT4') { tgt = W(3.5, 4.0, LV['3FL'] + 1.6); pos = W(13, 12, LV['3FL'] + 2.4); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
+  else if (sc === 'propsT4') { tgt = W(4.0, 5.5, LV['3FL'] + 3.0); pos = W(10.5, 12.5, LV['3FL'] + 1.6); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
   else { tgt = W(4.5, 5.5, zc); pos = W(15, 16, zc + 5.5); }
   controls.target.copy(tgt); cam3D.position.copy(pos); controls.update();
   markTag(true); resize();
