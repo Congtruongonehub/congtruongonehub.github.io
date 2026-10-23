@@ -8,9 +8,10 @@ const AL = (() => {
   const RIB = 0.065, SKIN = 0.004;
   const KG = {W: 20, WS: 25, WC: 20, D: 20, DS: 20, DE: 20, B: 25, MB: 54, EB: 50, PH: 45, PHS: 50, SC: 39};
   const DS2 = THREE.DoubleSide;
-  const mAlu = () => lam(0xe2e8ee, {emissive: 0x4a545e, side: DS2, vertexColors: true});
-  const mBeam = () => lam(0xc4ced8, {emissive: 0x3d4752, side: DS2, vertexColors: true});
-  const mHead = () => lam(0xf0c419, {emissive: 0x3a2f00, side: DS2});
+  const std = o => new THREE.MeshStandardMaterial(Object.assign({clippingPlanes: CLIP, side: DS2}, o));
+  const mAlu = () => std({color: 0xd3d9df, metalness: 0.55, roughness: 0.42, vertexColors: true});     // nhôm hợp kim mới, bề mặt mờ
+  const mBeam = () => std({color: 0xc9d0d7, metalness: 0.55, roughness: 0.45, vertexColors: true});
+  const mHead = () => std({color: 0xc2c9d0, metalness: 0.6, roughness: 0.4});                          // đầu chống, dầm xương: nhôm đúc
   const mPin = () => lam(0xc0392b);
   const mSteel = () => lam(0x8f9aa6);
   const cache = {};
@@ -28,14 +29,17 @@ const AL = (() => {
     const k = `p${w.toFixed(3)}_${h.toFixed(3)}_${crossAlongY}`; if (cache[k]) return cache[k];
     const a = [], t = 0.008, hw = w / 2 - 0.002, hh = h / 2 - 0.002;   // khe giáp mí 4 mm; sườn biên (mép giáp mí, có lỗ chốt) dày 8, sâu 65
     const col = [];
-    addBox(a, -hw, hw, -hh, hh, -SKIN, 0); tint(col, 36, 1, 1, 1);                         // mặt nhôm
+    addBox(a, -hw, hw, -hh, hh, -SKIN, 0); tint(col, 36, 0.93, 0.94, 0.95);                // mặt nhôm (mặt tiếp xúc bê tông)
     addBox(a, -hw, -hw + t, -hh, hh, -RIB, -SKIN); addBox(a, hw - t, hw, -hh, hh, -RIB, -SKIN);   // sườn biên dọc = mép giáp mí
     addBox(a, -hw, hw, -hh, -hh + t, -RIB, -SKIN); addBox(a, -hw, hw, hh - t, hh, -RIB, -SKIN);   // sườn biên ngang = mép giáp mí
-    tint(col, 144, 0.5, 0.58, 0.68);
-    // sườn tăng cứng bên trong: mỏng 3, thấp 40 – KHÔNG phải mép giáp mí, không có chốt
-    if (crossAlongY) for (let y = -hh + 0.3; y < hh - 0.05; y += 0.3) addBox(a, -hw + t, hw - t, y - 0.0015, y + 0.0015, -0.04, -SKIN);
-    else for (let x = -hw + 0.3; x < hw - 0.05; x += 0.3) addBox(a, x - 0.0015, x + 0.0015, -hh + t, hh - t, -0.04, -SKIN);
-    tint(col, a.length / 3 - col.length / 3, 0.92, 0.94, 0.96);
+    // gờ mép sườn biên (profile chữ L) – mép giáp mí
+    addBox(a, -hw + t, -hw + 0.022, -hh, hh, -RIB, -RIB + 0.004); addBox(a, hw - 0.022, hw - t, -hh, hh, -RIB, -RIB + 0.004);
+    addBox(a, -hw, hw, -hh + t, -hh + 0.022, -RIB, -RIB + 0.004); addBox(a, -hw, hw, hh - 0.022, hh - t, -RIB, -RIB + 0.004);
+    tint(col, a.length / 3 - col.length / 3, 0.78, 0.81, 0.85);
+    // sườn tăng cứng bên trong dạng ống hộp 20×40 @300 – KHÔNG phải mép giáp mí, không có chốt
+    if (crossAlongY) for (let y = -hh + 0.3; y < hh - 0.05; y += 0.3) addBox(a, -hw + t, hw - t, y - 0.01, y + 0.01, -0.044, -SKIN);
+    else for (let x = -hw + 0.3; x < hw - 0.05; x += 0.3) addBox(a, x - 0.01, x + 0.01, -hh + t, hh - t, -0.044, -SKIN);
+    tint(col, a.length / 3 - col.length / 3, 0.95, 0.96, 0.97);
     return (cache[k] = geoOf(a, col));
   }
   // Đầu chống PH: khối hình thang mặt trên 300, đáy 200, cao 125, rộng 150 + ống cắm cây chống
@@ -61,6 +65,30 @@ const AL = (() => {
     }
   };
   const fmm = v => Math.round(v * 1000);
+  // lỗ chốt Ø17 dọc sườn biên @100 (như tấm thật) – đĩa tối trên mặt ngoài sườn
+  let HOLE, HOLEM; const holeGeo = () => HOLE || (HOLE = new THREE.CircleGeometry(0.0085, 8));
+  const holeMat = () => HOLEM || (HOLEM = new THREE.MeshBasicMaterial({color: 0x23282d, side: DS2, clippingPlanes: CLIP}));
+  // nhãn mã tấm: tem vàng in mã ghi phiếu, dán mặt sau tấm
+  const STK = {}, stkGeo = new THREE.PlaneGeometry(0.16, 0.07);
+  function stkMat(code) {
+    if (STK[code]) return STK[code];
+    const c = document.createElement('canvas'); c.width = 256; c.height = 112; const x = c.getContext('2d');
+    x.fillStyle = '#f2d33b'; x.fillRect(0, 0, 256, 112); x.strokeStyle = '#7a6410'; x.lineWidth = 4; x.strokeRect(2, 2, 252, 108);
+    x.fillStyle = '#1b1b1b'; x.font = 'bold 34px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    let f = 34; while (x.measureText(code).width > 236 && f > 16) { f -= 2; x.font = `bold ${f}px Arial, sans-serif`; }
+    x.fillText(code, 128, 46); x.font = '20px Arial, sans-serif'; x.fillText('ONEHUB BP2', 128, 88);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+    return (STK[code] = new THREE.MeshBasicMaterial({map: t, side: DS2, clippingPlanes: CLIP}));
+  }
+  // đặt 1 tấm: thân tấm + lỗ chốt + tem mã
+  function addPanel(bt, w, h, crossY, mat, m, info, code) {
+    bt.add(panelGeo(w, h, crossY), mat, m, info);
+    const hw = w / 2 - 0.002, hh = h / 2 - 0.002, L = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    const put = (x, y, z, rx, ry) => { e.set(rx, ry, 0); q.setFromEuler(e); L.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1)); bt.add(holeGeo(), holeMat(), m.clone().multiply(L), info); };
+    for (let y = -hh + 0.05; y < hh - 0.02; y += 0.1) { put(-hw - 0.0006, y, -0.03, 0, -Math.PI / 2); put(hw + 0.0006, y, -0.03, 0, Math.PI / 2); }
+    for (let x = -hw + 0.05; x < hw - 0.02; x += 0.1) { put(x, -hh - 0.0006, -0.03, Math.PI / 2, 0); put(x, hh + 0.0006, -0.03, -Math.PI / 2, 0); }
+    if (code && w >= 0.18 && h >= 0.18) { e.set(0, Math.PI, 0); q.setFromEuler(e); const yo = h > 0.5 ? 0.15 : 0; L.compose(new THREE.Vector3(0, yo, -SKIN - 0.001), q, new THREE.Vector3(1, 1, 1)); bt.add(stkGeo, stkMat(code), m.clone().multiply(L), info); }
+  }
   function bomAdd(bom, code, kg, n = 1) { const r = bom[code] || (bom[code] = {n: 0, kg: 0}); r.n += n; r.kg += kg * n; }
   const card = (code, rows) => () => ({title: `${code}`, rows});
 
@@ -104,11 +132,11 @@ const AL = (() => {
           const code = s.code(wd), kg = KG[code.slice(0, 2)] || 20, area = wd * s.h;
           const cen = new THREE.Vector3(...W(f.cx, f.cy, z + s.h / 2).toArray()).addScaledVector(ex, off + wd / 2);
           const zz = z;
-          bt.add(panelGeo(wd, s.h, true), alu, mtx(cen, ex, ey, ez), card(code, [
+          addPanel(bt, wd, s.h, true, alu, mtx(cen, ex, ey, ez), card(code, [
             ['Loại', `${s.note} – ${code.startsWith('W') && code[1] !== 'S' && code[1] !== 'C' ? 'W' : code.slice(0, 2)}`],
             ['Kích thước', `${fmm(wd)} × ${fmm(s.h)} mm, sườn 65`], ['Trọng lượng', `≈ ${(area * kg).toFixed(1)} kg (${kg} kg/m²)`],
             ['Vị trí', `Cột ${c.type} – ${f.nm}, từ ${fmtLv(zz)}`], ['Liên kết', 'Chốt ngắn RP + nêm WP @300 dọc mép; gông bằng cùm xà gồ + ống thép'],
-            ['Tháo', 'Sau đổ 12 giờ (TVGS chấp thuận); tháo từ trên xuống, giữ kicker']]));
+            ['Tháo', 'Sau đổ 12 giờ (TVGS chấp thuận); tháo từ trên xuống, giữ kicker']]), code);
           bomAdd(bom, code, area * kg);
           // chốt mép đứng (giữa 2 tấm cạnh nhau / với góc CA) @300 và mép ngang (giữa 2 tầng tấm) @300
           for (let y = zz + 0.15; y < zz + s.h - 0.05; y += 0.3)
@@ -243,7 +271,7 @@ const AL = (() => {
   // beams: dầm vùng thí điểm; edge: cao độ mép công trình; zTop: mặt sàn; stage: 'full' | 'early' (chỉ còn cây chống + đầu chống)
   function slab(beams, zFloor, zTop, edge, stage = 'full') {
     const grp = new THREE.Group(), bt = new Batch(), bom = {}, props = [];
-    const alu = mAlu(), alb = mBeam(), head = mHead();
+    const alu = mAlu(), alb = mBeam(), head = mHead(), albBox = std({color: 0xc9d0d7, metalness: 0.55, roughness: 0.45});
     const soffit = zTop - 0.22, q = h => 25 * h + FORM + LIVE;
     // --- ô sàn trống giữa các dầm, quanh tâm vùng ---
     const cx = 5, cy = 7, NS = beams.filter(b => b.o === 'NS'), EW = beams.filter(b => b.o === 'EW');
@@ -278,10 +306,10 @@ const AL = (() => {
       for (const sx of xs) if (sx.code !== 'MB') for (const sy of ys) {
         const lx = sx.x1 - sx.x0, wy = sy.y1 - sy.y0, std = Math.abs(lx - 1.2) < 1e-3 && Math.abs(wy - 0.6) < 1e-3;
         const code = std ? 'D600x1200' : `DS${fmm(Math.min(lx, wy))}x${fmm(Math.max(lx, wy))}`, kg = 20 * lx * wy;
-        bt.add(panelGeo(wy, lx, true), alu, mtx(W((sx.x0 + sx.x1) / 2, (sy.y0 + sy.y1) / 2, soffit), PY.clone().negate(), PX.clone(), PZ.clone()), card(code, [
+        addPanel(bt, wy, lx, true, alu, mtx(W((sx.x0 + sx.x1) / 2, (sy.y0 + sy.y1) / 2, soffit), PY.clone().negate(), PX.clone(), PZ.clone()), card(code, [
           ['Loại', std ? 'Tấm sàn tiêu chuẩn (Slab panel)' : 'Tấm sàn đặc biệt – cắt theo thiết kế'], ['Kích thước', `${fmm(wy)} × ${fmm(lx)} mm`],
           ['Trọng lượng', `≈ ${kg.toFixed(1)} kg (20 kg/m²)`], ['Mặt cốp pha', fmtLv(soffit)],
-          ['Lắp', 'Sau khi lắp xong dầm xương; lắp từ 2 đầu dầm xương đuổi vào giữa'], ['Tháo', 'Sau đổ 36 giờ (TVGS chấp thuận), GIỮ cây chống + đầu chống']]));
+          ['Lắp', 'Sau khi lắp xong dầm xương; lắp từ 2 đầu dầm xương đuổi vào giữa'], ['Tháo', 'Sau đổ 36 giờ (TVGS chấp thuận), GIỮ cây chống + đầu chống']]), code);
         bomAdd(bom, code, kg);
         // chốt tấm sàn: cạnh dài (mép 600 kề tấm bên) @300; cạnh ngắn (kề dầm xương / góc sàn) 2 chốt
         const zp = soffit - RIB / 2;
@@ -300,8 +328,8 @@ const AL = (() => {
           const arr = [], ix = side === 'x+' ? 1 : side === 'x-' ? -1 : 0, iy = side === 'y+' ? 1 : side === 'y-' ? -1 : 0;
           const x0 = Math.min(a[0], b2[0]), x1 = Math.max(a[0], b2[0]), y0 = Math.min(a[1], b2[1]), y1 = Math.max(a[1], b2[1]);
           const hx0 = ix ? (ix > 0 ? x0 : x0 - SCW) : x0, hx1 = ix ? (ix > 0 ? x0 + SCW : x0) : x1, hy0 = iy ? (iy > 0 ? y0 : y0 - SCW) : y0, hy1 = iy ? (iy > 0 ? y0 + SCW : y0) : y1;
-          const m = box(hx0, hx1, hy0, hy1, soffit - RIB, soffit, alb);                                  // cánh nằm dưới sàn
-          const v = box(ix ? (ix > 0 ? x0 : x0 - RIB) : x0, ix ? (ix > 0 ? x0 + RIB : x0) : x1, iy ? (iy > 0 ? y0 : y0 - RIB) : y0, iy ? (iy > 0 ? y0 + RIB : y0) : y1, soffit - SCW, soffit, alb);   // cánh đứng ốp thành dầm
+          const m = box(hx0, hx1, hy0, hy1, soffit - RIB, soffit, albBox);                                  // cánh nằm dưới sàn
+          const v = box(ix ? (ix > 0 ? x0 : x0 - RIB) : x0, ix ? (ix > 0 ? x0 + RIB : x0) : x1, iy ? (iy > 0 ? y0 : y0 - RIB) : y0, iy ? (iy > 0 ? y0 + RIB : y0) : y1, soffit - SCW, soffit, albBox);   // cánh đứng ốp thành dầm
           const code = `SC100x${fmm(l)}`; m.userData.info = v.userData.info = card(code, [['Loại', 'Góc sàn (Slab corner) – nối tấm sàn với thành dầm'], ['Trọng lượng', `≈ ${(39 * 0.2 * l).toFixed(1)} kg (39 kg/m²)`], ['Tháo', 'Tháo sau cùng trong hệ sàn (B3)']]);
           grp.add(m, v); bomAdd(bom, code, 39 * 0.2 * l);
           // chốt đứng nối cánh đứng góc sàn với sườn trên thành dầm @300
@@ -328,7 +356,7 @@ const AL = (() => {
           props.push({x: xm, y: ym, zt: soffit - 0.225, a: spanX, w: dy, q: q(0.22), where: 'Dưới đầu chống PH (sàn 220)'});
         } else if (stage === 'full') {
           const code = seg.code === 'MB' ? `MB150x${fmm(L)}` : `EB150x${fmm(L)}`, kg = KG[seg.code] * 0.15 * L;
-          const g = new THREE.Group(), m = box(sx.x0, sx.x1, seg.y0, seg.y1, soffit - 0.125, soffit, alb);
+          const g = new THREE.Group(), m = box(sx.x0, sx.x1, seg.y0, seg.y1, soffit - 0.125, soffit, albBox);
           m.userData.info = card(code, [['Loại', seg.code === 'MB' ? 'Dầm xương giữa (Middle beam) – 2 đầu vát ngược chiều' : 'Dầm xương cuối (End beam) – giữa góc sàn SC và đầu chống PH'],
             ['Kích thước', `150 × 125 × ${fmm(L)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Lắp', 'Lắp bằng cao độ sàn, ≥ 3 công nhân; nối bằng thanh nẹp JB + chốt dài LP']]);
           grp.add(m); bomAdd(bom, code, kg);
@@ -347,7 +375,7 @@ const AL = (() => {
           const [px, py] = P(u + L / 2, w0 + sw / 2), code = `DE${fmm(L)}x${fmm(sw)}`, kg = 20 * L * sw;
           if (stage === 'full' && !inCol(px, py, -0.1)) {
             const ex = EWb ? PX.clone() : PY.clone(), ey = EWb ? PY.clone() : PX.clone().negate();
-            bt.add(panelGeo(L, sw, false), alu, mtx(W(px, py, zb), ex, ey, PZ.clone()), card(code, [['Loại', 'Tấm đáy dầm (Beam bottom slab panel)'], ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Đáy dầm', fmtLv(zb)], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`]]));
+            addPanel(bt, L, sw, false, alu, mtx(W(px, py, zb), ex, ey, PZ.clone()), card(code, [['Loại', 'Tấm đáy dầm (Beam bottom slab panel)'], ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Đáy dầm', fmtLv(zb)], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`]]), code);
             bomAdd(bom, code, kg);
           }
           // đầu chống đặc biệt PHS + cây chống ở mỗi mối nối đáy dầm
@@ -371,8 +399,8 @@ const AL = (() => {
         for (const L of panels) {
           const [px, py] = P(u + L / 2, side * b.b / 2), code = `B${fmm(L)}x${fmm(hgt)}`, kg = 25 * L * hgt;
           const ez = EWb ? new THREE.Vector3(0, 0, side) : new THREE.Vector3(-side, 0, 0), ey = PZ.clone(), ex = new THREE.Vector3().crossVectors(ey, ez);
-          bt.add(panelGeo(L, hgt, false), alb, mtx(W(px, py, zt - hgt / 2), ex, ey, ez), card(code, [['Loại', isOuter ? 'Thành dầm biên – cao hơn mặt sàn 50, công trường gia cố thêm' : 'Tấm thành dầm (Beam panel)'],
-            ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Kích thước', `${fmm(L)} × ${fmm(hgt)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Tháo', 'Sau đổ 12 giờ cùng tấm vách, cột']]));
+          addPanel(bt, L, hgt, false, alb, mtx(W(px, py, zt - hgt / 2), ex, ey, ez), card(code, [['Loại', isOuter ? 'Thành dầm biên – cao hơn mặt sàn 50, công trường gia cố thêm' : 'Tấm thành dầm (Beam panel)'],
+            ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Kích thước', `${fmm(L)} × ${fmm(hgt)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Tháo', 'Sau đổ 12 giờ cùng tấm vách, cột']]), code);
           bomAdd(bom, code, kg);
           // la xuyên dầm tại mép giáp mí đứng giữa 2 tấm thành (mỗi 600), ở giữa chiều cao thành
           if (side === 1 && u + L < b.hi - 0.05) {

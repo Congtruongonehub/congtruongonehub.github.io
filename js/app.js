@@ -391,6 +391,14 @@ renderer.localClippingEnabled = true; renderer.setClearColor(0x000000, 0);
 const scene = new THREE.Scene();
 scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.9));
 const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(30, 60, 20); scene.add(sun);
+// môi trường phản chiếu cho kim loại (nhôm, thép): trời sáng phía trên, nền công trường xám phía dưới
+(function envMap() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, '#eef4fa'); gr.addColorStop(0.45, '#c9d4de'); gr.addColorStop(0.55, '#8d959c'); gr.addColorStop(1, '#4a5056');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
+  const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping;
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(t).texture; pm.dispose();
+})();
 const camAR = new THREE.PerspectiveCamera(60, 1, 0.05, 200); camAR.matrixAutoUpdate = false;
 const cam3D = new THREE.PerspectiveCamera(50, 1, 0.05, 500);
 let controls = null, cur = null, curTag = null, curEl = null, curMode = null, view = 'home';
