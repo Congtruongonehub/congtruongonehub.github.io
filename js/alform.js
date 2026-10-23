@@ -98,12 +98,11 @@ const AL = (() => {
             ['Vị trí', `Cột ${c.type} – ${f.nm}, từ ${fmtLv(zz)}`], ['Liên kết', 'Chốt ngắn RP + nêm WP @300 dọc mép; gông bằng cùm xà gồ + ống thép'],
             ['Tháo', 'Sau đổ 12 giờ (TVGS chấp thuận); tháo từ trên xuống, giữ kicker']]));
           bomAdd(bom, code, area * kg);
-          // chốt dọc mép đứng giữa các tấm và mép ngang giữa các tầng tấm
-          for (let y = zz + 0.15; y < zz + s.h - 0.05; y += 0.3) {
-            const p = new THREE.Vector3(...W(f.cx, f.cy, y).toArray()).addScaledVector(ex, off + wd).addScaledVector(ez, -RIB - 0.01);
-            bt.add(pinGeo(), pin, mtx(p, ex, ey, ez), card('RP + WP', [['Phụ kiện', 'Chốt ngắn (Round pin) + nêm (Wedge)'], ['Bước', '@300 dọc mép tấm']]));
-            bomAdd(bom, 'RP + WP (bộ)', 0.25);
-          }
+          // chốt mép đứng (giữa 2 tấm cạnh nhau / với góc CA) @300 và mép ngang (giữa 2 tầng tấm) @300
+          for (let y = zz + 0.15; y < zz + s.h - 0.05; y += 0.3)
+            for (const xe of [off, off + wd]) pinAt(bt, bom, new THREE.Vector3(...W(f.cx, f.cy, y).toArray()).addScaledVector(ex, xe).addScaledVector(ez, -RIB / 2), ex);
+          if (zz > z0 + 0.01) for (let xx = off + 0.15; xx < off + wd - 0.05; xx += 0.3)
+            pinAt(bt, bom, new THREE.Vector3(...W(f.cx, f.cy, zz).toArray()).addScaledVector(ex, xx).addScaledVector(ez, -RIB / 2), ey);
           z += s.h;
         }
         off += wd;
@@ -132,7 +131,25 @@ const AL = (() => {
     grp.add(pm); bt.build(grp);
     return {grp, bom};
   }
-  function pinGeo() { if (cache.pin) return cache.pin; const a = []; addBox(a, -0.008, 0.008, -0.03, 0.03, -0.012, 0.012); return (cache.pin = geoOf(a)); }
+  // Chốt ngắn RP: thân Ø16 dài 90 + mũ Ø32, trục cục bộ X (xuyên qua 2 sườn tấm kề nhau); nêm WP cắm ở đuôi chốt
+  function addCylX(a, r, x0, x1, n = 8) {
+    for (let i = 0; i < n; i++) { const t0 = 2 * Math.PI * i / n, t1 = 2 * Math.PI * (i + 1) / n, c0 = Math.cos(t0) * r, s0 = Math.sin(t0) * r, c1 = Math.cos(t1) * r, s1 = Math.sin(t1) * r;
+      a.push(x0, c0, s0, x1, c0, s0, x1, c1, s1, x0, c0, s0, x1, c1, s1, x0, c1, s1, x1, 0, 0, x1, c1, s1, x1, c0, s0, x0, 0, 0, x0, c0, s0, x0, c1, s1); }
+  }
+  function pinGeo() { if (cache.pin) return cache.pin; const a = []; addCylX(a, 0.009, -0.045, 0.045); addCylX(a, 0.017, 0.045, 0.055); return (cache.pin = geoOf(a)); }
+  function wedgeGeo() { if (cache.wg) return cache.wg; const a = []; addBox(a, -0.052, -0.044, -0.035, 0.03, -0.012, 0.012); return (cache.wg = geoOf(a)); }
+  function lpGeo() { if (cache.lp) return cache.lp; const a = []; addCylX(a, 0.009, -0.11, 0.11); addCylX(a, 0.017, 0.11, 0.12); return (cache.lp = geoOf(a)); }
+  // đặt chốt: p = điểm (world), ax = trục chốt (world, đơn vị)
+  function basisFor(ax) { const up = Math.abs(ax.y) < 0.9 ? PZ.clone() : PX.clone(), ez = new THREE.Vector3().crossVectors(ax, up).normalize(), ey = new THREE.Vector3().crossVectors(ez, ax); return [ax.clone(), ey, ez]; }
+  let PINM, WGM;
+  const RPINFO = card('RP + WP – chốt ngắn + nêm', [['Phụ kiện', 'Chốt ngắn (Round pin) xuyên 2 sườn tấm kề nhau, khoá bằng nêm (Wedge)'], ['Bước', '@300 dọc mép tấm (theo lỗ chốt có sẵn)'], ['Tháo', 'Đóng trực tiếp vào đuôi nêm hoặc dùng dụng cụ tháo']]);
+  const LPINFO = card('LP – chốt dài', [['Phụ kiện', 'Chốt dài (Long pin) nối dầm xương MB/EB với đầu chống PH, có thanh nẹp JB'], ['Vị trí', '2 đầu mỗi đầu chống']]);
+  function pinAt(bt, bom, p, ax, kind = 'RP') {
+    PINM = PINM || lam(0xe0302a, {emissive: 0x400000}); WGM = WGM || lam(0xf39c12, {emissive: 0x3a2400});
+    const [ex, ey, ez] = basisFor(ax), m = mtx(p, ex, ey, ez);
+    if (kind === 'LP') { bt.add(lpGeo(), PINM, m, LPINFO); bomAdd(bom, 'LP – chốt dài', 0.35); return; }
+    bt.add(pinGeo(), PINM, m, RPINFO); bt.add(wedgeGeo(), WGM, m, RPINFO); bomAdd(bom, 'RP + WP – chốt + nêm (bộ)', 0.25);
+  }
   function caGeo(L) {
     const k = 'ca' + L.toFixed(3); if (cache[k]) return cache[k];
     const a = [], l = 0.0635, t = 0.004;   // chữ V ôm góc ngoài: hai cánh 63,5
@@ -184,6 +201,11 @@ const AL = (() => {
           ['Trọng lượng', `≈ ${kg.toFixed(1)} kg (20 kg/m²)`], ['Mặt cốp pha', fmtLv(soffit)],
           ['Lắp', 'Sau khi lắp xong dầm xương; lắp từ 2 đầu dầm xương đuổi vào giữa'], ['Tháo', 'Sau đổ 36 giờ (TVGS chấp thuận), GIỮ cây chống + đầu chống']]));
         bomAdd(bom, code, kg);
+        // chốt tấm sàn: cạnh dài (mép 600 kề tấm bên) @300; cạnh ngắn (kề dầm xương / góc sàn) 2 chốt
+        const zp = soffit - RIB / 2;
+        for (let xx = sx.x0 + 0.15; xx < sx.x1 - 0.05; xx += 0.3) pinAt(bt, bom, W(xx, sy.y1, zp), PY);
+        if (sy === ys[0]) for (let xx = sx.x0 + 0.15; xx < sx.x1 - 0.05; xx += 0.3) pinAt(bt, bom, W(xx, sy.y0, zp), PY);
+        for (let yy = sy.y0 + 0.15; yy < sy.y1 - 0.05; yy += 0.3) { pinAt(bt, bom, W(sx.x0, yy, zp), PX); pinAt(bt, bom, W(sx.x1, yy, zp), PX); }
       }
       // góc sàn SC dọc 4 cạnh ô sàn (nối tấm sàn với thành dầm)
       for (const [p0, p1, side] of [[[bx0, by0], [bx0, by1], 'x+'], [[bx1, by0], [bx1, by1], 'x-'], [[bx0, by0], [bx1, by0], 'y+'], [[bx0, by1], [bx1, by1], 'y-']]) {
@@ -197,7 +219,11 @@ const AL = (() => {
           const m = box(hx0, hx1, hy0, hy1, soffit - RIB, soffit, alb);                                  // cánh nằm dưới sàn
           const v = box(ix ? (ix > 0 ? x0 : x0 - RIB) : x0, ix ? (ix > 0 ? x0 + RIB : x0) : x1, iy ? (iy > 0 ? y0 : y0 - RIB) : y0, iy ? (iy > 0 ? y0 + RIB : y0) : y1, soffit - SCW, soffit, alb);   // cánh đứng ốp thành dầm
           const code = `SC100x${fmm(l)}`; m.userData.info = v.userData.info = card(code, [['Loại', 'Góc sàn (Slab corner) – nối tấm sàn với thành dầm'], ['Trọng lượng', `≈ ${(39 * 0.2 * l).toFixed(1)} kg (39 kg/m²)`], ['Tháo', 'Tháo sau cùng trong hệ sàn (B3)']]);
-          grp.add(m, v); bomAdd(bom, code, 39 * 0.2 * l); s += l;
+          grp.add(m, v); bomAdd(bom, code, 39 * 0.2 * l);
+          // chốt đứng nối cánh đứng góc sàn với sườn trên thành dầm @300
+          for (let d = 0.15; d < l - 0.05; d += 0.3) { const px = a[0] + (b2[0] - a[0]) * d / l, py = a[1] + (b2[1] - a[1]) * d / l;
+            pinAt(bt, bom, W(px - ix * RIB / 2, py - iy * RIB / 2, soffit - SCW), PZ); }
+          s += l;
         }
       }
     }
@@ -211,6 +237,7 @@ const AL = (() => {
             ['Loại', 'Đầu chống (Prop head) – khối hình thang, giữ lại khi tháo sàn sớm'], ['Kích thước', 'Rộng 150, dài 300, cao 125'],
             ['Trọng lượng', '≈ 2,0 kg'], ['Liên kết', 'Chốt dài (LP) với dầm xương MB; cắm vào đầu cây chống SPP']]));
           bomAdd(bom, 'PH150x300', 45 * 0.045);
+          if (stage === 'full') for (const yy of [seg.y0, seg.y1]) pinAt(bt, bom, W(xm, yy, soffit - 0.06), PX, 'LP');
           // cây chống dưới đầu chống: diện chịu tải = khoảng cách dầm xương × khoảng cách đầu chống
           const i = line.indexOf(seg), prev = line.slice(0, i).reverse().find(s => s.code === 'PH'), next = line.slice(i + 1).find(s => s.code === 'PH');
           const left = (prev ? ym - (prev.y0 + prev.y1) / 2 : ym - ay0 + SCW) / 2, right = (next ? (next.y0 + next.y1) / 2 - ym : ay1 + SCW - ym) / 2, dy = left + right;   // nửa nhịp mỗi bên; đầu mút SC tựa lên thành dầm
@@ -262,7 +289,12 @@ const AL = (() => {
           const ez = EWb ? new THREE.Vector3(0, 0, side) : new THREE.Vector3(-side, 0, 0), ey = PZ.clone(), ex = new THREE.Vector3().crossVectors(ey, ez);
           bt.add(panelGeo(L, hgt, false), alb, mtx(W(px, py, zt - hgt / 2), ex, ey, ez), card(code, [['Loại', isOuter ? 'Thành dầm biên – cao hơn mặt sàn 50, công trường gia cố thêm' : 'Tấm thành dầm (Beam panel)'],
             ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Kích thước', `${fmm(L)} × ${fmm(hgt)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Tháo', 'Sau đổ 12 giờ cùng tấm vách, cột']]));
-          bomAdd(bom, code, kg); u += L;
+          bomAdd(bom, code, kg);
+          // chốt thành dầm: với đáy dầm (mép dưới) và giữa 2 tấm thành (mép đứng) @300
+          const across = EWb ? PY : PX;
+          for (let d = 0.15; d < L - 0.05; d += 0.3) { const [qx, qy] = P(u + d, side * (b.b / 2 + RIB / 2)); pinAt(bt, bom, W(qx, qy, zt - hgt), across); }
+          for (let hz = zt - hgt + 0.15; hz < zt - 0.05; hz += 0.3) { const [qx, qy] = P(u + L, side * (b.b / 2 + RIB / 2)); pinAt(bt, bom, W(qx, qy, hz), EWb ? PX : PY); }
+          u += L;
         }
       }
     }
@@ -298,7 +330,7 @@ const AL = (() => {
 
   // Bảng thống kê tấm (gắn vào thẻ bước)
   function bomRows(bom) {
-    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
+    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : k.startsWith('LP') ? 'cây' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
     const tot = Object.values(bom).reduce((s, v) => s + v.kg, 0);
     rows.push(['Tổng khối lượng', `≈ ${(tot / 1000).toFixed(2)} tấn (vùng hiển thị)`]);
     return rows;

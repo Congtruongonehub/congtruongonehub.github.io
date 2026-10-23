@@ -1,5 +1,5 @@
 // Lưu sẵn trang để mở nhanh khi sóng yếu; hồ sơ nghiệm thu luôn lấy bản mới nhất nếu có mạng
-const V = 'onehub-ar-v7';
+const V = 'onehub-ar-v8';
 const FILES = ['./', 'index.html', 'lib/three.min.js', 'lib/OrbitControls.js', 'lib/jsQR.js', 'data/model_data.js', 'data/du_lieu.js',
   'js/rebar_core.js', 'js/bs_core.js', 'js/alform.js', 'js/app.js', 'js/qr_worker.js', 'manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES))); self.skipWaiting(); });
