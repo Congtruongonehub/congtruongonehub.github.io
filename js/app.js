@@ -181,7 +181,7 @@ function buildProps(zFloor, zTop) {
       ['Bước chống', `${p.a.toFixed(2)} × ${p.w.toFixed(2)} m (sơ bộ)`],
       ['Tải ước tính', `${p.load.toFixed(1)} kN (${p.q.toFixed(2)} kN/m² gồm bê tông, cốp pha, thi công ${LIVE})`],
       ['Tải cho phép', `≈ ${p.cap.toFixed(1)} kN ở chiều dài này · sử dụng ${(r * 100).toFixed(0)}%${r > 0.9 ? ' – SÁT GIỚI HẠN' : ''}`],
-      ['Ống', 'Ngoài Ø60,3×2,0 (xanh) · trong Ø48,6×2,2 (trắng) · đế/mũ 140×140'],
+      ['Ống', 'Thép mạ kẽm: ngoài Ø60,3×2,0 · trong Ø48,6×2,2 có hàng lỗ chỉnh cao, đầu sơn đỏ · đế/mũ 140×140'],
       ['Tháo chống', 'Tháo tấm sàn sớm, giữ cây chống ≥ 21 ngày và sau khi kéo căng cáp'],
       ['Ghi chú', 'Bố trí sơ bộ – thay bằng bản bố trí + tính toán của Kumkang khi có'],
     ]};

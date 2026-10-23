@@ -39,6 +39,9 @@ const AL = (() => {
     // sườn tăng cứng bên trong dạng ống hộp 20×40 @300 – KHÔNG phải mép giáp mí, không có chốt
     if (crossAlongY) for (let y = -hh + 0.3; y < hh - 0.05; y += 0.3) addBox(a, -hw + t, hw - t, y - 0.01, y + 0.01, -0.044, -SKIN);
     else for (let x = -hw + 0.3; x < hw - 0.05; x += 0.3) addBox(a, x - 0.01, x + 0.01, -hh + t, hh - t, -0.044, -SKIN);
+    // tấm rộng ≥ 400: thêm sườn dọc giữa tấm (như tấm WP thực tế)
+    if (crossAlongY && w >= 0.399) addBox(a, -0.01, 0.01, -hh + t, hh - t, -0.044, -SKIN);
+    else if (!crossAlongY && h >= 0.399) addBox(a, -hw + t, hw - t, -0.01, 0.01, -0.044, -SKIN);
     tint(col, a.length / 3 - col.length / 3, 0.95, 0.96, 0.97);
     return (cache[k] = geoOf(a, col));
   }
@@ -50,6 +53,25 @@ const AL = (() => {
     for (const [p,q,r] of [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]]) a.push(...v[p],...v[q],...v[r]);
     addBox(a, -0.03, 0.03, -h - 0.1, -h, -0.03, 0.03);            // ống cắm
     return (cache.ph = geoOf(a));
+  }
+  // Dầm xương MB/EB như thực tế: mặt trên 150 (tiếp xúc bê tông), 2 bụng cao 125 có hàng lỗ chốt, gờ chân, sườn ngang @300
+  function mbGeo(L) {
+    const k = 'mb' + L.toFixed(3); if (cache[k]) return cache[k];
+    const a = [], col = [], hw = 0.075, hl = L / 2 - 0.002, d = 0.125, t = 0.006;
+    addBox(a, -hw, hw, -hl, hl, -SKIN, 0); tint(col, 36, 0.93, 0.94, 0.95);
+    addBox(a, -hw, -hw + t, -hl, hl, -d, -SKIN); addBox(a, hw - t, hw, -hl, hl, -d, -SKIN);              // 2 bụng
+    addBox(a, -hw + t, -hw + 0.03, -hl, hl, -d, -d + 0.005); addBox(a, hw - 0.03, hw - t, -hl, hl, -d, -d + 0.005);   // gờ chân
+    addBox(a, -hw, hw, -hl, -hl + t, -d, -SKIN); addBox(a, -hw, hw, hl - t, hl, -d, -SKIN);              // bản đầu
+    tint(col, a.length / 3 - col.length / 3, 0.78, 0.81, 0.85);
+    for (let y = -hl + 0.3; y < hl - 0.05; y += 0.3) addBox(a, -hw + t, hw - t, y - 0.004, y + 0.004, -0.09, -SKIN);
+    tint(col, a.length / 3 - col.length / 3, 0.9, 0.92, 0.93);
+    return (cache[k] = geoOf(a, col));
+  }
+  function addMB(bt, L, mat, m, info) {
+    bt.add(mbGeo(L), mat, m, info);
+    const hl = L / 2 - 0.002, Lm = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (const sx of [-1, 1]) { e.set(0, sx * Math.PI / 2, 0); q.setFromEuler(e);
+      for (let y = -hl + 0.05; y < hl - 0.02; y += 0.1) for (const z of [-0.03, -0.085]) { Lm.compose(new THREE.Vector3(sx * 0.0756, y, z), q, new THREE.Vector3(1, 1, 1)); bt.add(holeGeo(), holeMat(), m.clone().multiply(Lm), info); } }
   }
   // ---- đặt khối theo hệ trục: ex, ey, ez là véc-tơ thế giới của trục cục bộ X, Y, Z ----
   const PX = new THREE.Vector3(1, 0, 0), PY = new THREE.Vector3(0, 0, -1), PZ = new THREE.Vector3(0, 1, 0);
@@ -68,15 +90,20 @@ const AL = (() => {
   // lỗ chốt Ø17 dọc sườn biên @100 (như tấm thật) – đĩa tối trên mặt ngoài sườn
   let HOLE, HOLEM; const holeGeo = () => HOLE || (HOLE = new THREE.CircleGeometry(0.0085, 8));
   const holeMat = () => HOLEM || (HOLEM = new THREE.MeshBasicMaterial({color: 0x23282d, side: DS2, clippingPlanes: CLIP}));
-  // nhãn mã tấm: tem vàng in mã ghi phiếu, dán mặt sau tấm
-  const STK = {}, stkGeo = new THREE.PlaneGeometry(0.16, 0.07);
+  // nhãn mã tấm như thực tế: tem trắng mã vạch của nhà cung cấp + mã tấm viết sơn đỏ, dán mặt sau tấm
+  const STK = {}, stkGeo = new THREE.PlaneGeometry(0.17, 0.08);
   function stkMat(code) {
     if (STK[code]) return STK[code];
-    const c = document.createElement('canvas'); c.width = 256; c.height = 112; const x = c.getContext('2d');
-    x.fillStyle = '#f2d33b'; x.fillRect(0, 0, 256, 112); x.strokeStyle = '#7a6410'; x.lineWidth = 4; x.strokeRect(2, 2, 252, 108);
-    x.fillStyle = '#1b1b1b'; x.font = 'bold 34px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    let f = 34; while (x.measureText(code).width > 236 && f > 16) { f -= 2; x.font = `bold ${f}px Arial, sans-serif`; }
-    x.fillText(code, 128, 46); x.font = '20px Arial, sans-serif'; x.fillText('ONEHUB BP2', 128, 88);
+    const c = document.createElement('canvas'); c.width = 256; c.height = 120; const x = c.getContext('2d');
+    x.fillStyle = '#f4f5f2'; x.fillRect(0, 0, 256, 120); x.strokeStyle = '#9aa0a6'; x.lineWidth = 2; x.strokeRect(1, 1, 254, 118);
+    // mã vạch giả lập (sọc theo mã tấm)
+    let s = 0; for (const ch of code) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+    x.fillStyle = '#1b1b1b'; for (let px = 14; px < 150; ) { const w = 1 + ((s = (s * 1103515245 + 12345) >>> 0) >> 16) % 4; x.fillRect(px, 12, w, 44); px += w + 1 + (s >> 20) % 3; }
+    x.fillRect(166, 12, 30, 30); x.fillStyle = '#f4f5f2'; x.fillRect(172, 18, 18, 18); x.fillStyle = '#1b1b1b'; x.fillRect(177, 23, 8, 8);   // ô QR nhỏ
+    x.font = '15px Arial, sans-serif'; x.fillText('KUMKANG · BP2', 14, 74);
+    x.fillStyle = '#c62828'; x.font = 'bold 30px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    let f = 30; while (x.measureText(code).width > 236 && f > 14) { f -= 2; x.font = `bold ${f}px Arial, sans-serif`; }
+    x.fillText(code, 128, 100);
     const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
     return (STK[code] = new THREE.MeshBasicMaterial({map: t, side: DS2, clippingPlanes: CLIP}));
   }
@@ -206,10 +233,10 @@ const AL = (() => {
       ['Cao độ', levels.map(d => '+' + d.toFixed(1).replace('.', ',')).join(' / ') + ' m từ chân cột'],
       ['Khối lượng', `≈ ${barLen.toFixed(1)} m dài, ${(barLen * 2.65).toFixed(0)} kg (hộp 50×50×1,8 ≈ 2,65 kg/m)`],
       ['Kiểm tra', 'Siết cùm đủ trước khi đổ; xà gồ thẳng, không cong vênh']]});
-    const bm1 = meshFrom(bars, st), bm2 = meshFrom(brk, lam(0xc0392b)); bm1.userData.info = bm2.userData.info = ginfo; grp.add(bm1, bm2);
+    const bm1 = meshFrom(bars, st), bm2 = meshFrom(brk, std({color: 0x6f7880, metalness: 0.6, roughness: 0.45})); bm1.userData.info = bm2.userData.info = ginfo; grp.add(bm1, bm2);
     // Cây chống xiên (push-pull prop) + cây chống chân (turnbuckle) – sổ tay mục Phụ kiện; đặt ở các mặt phía trong nhà
     // (mặt ngoài nhà không có sàn để tựa). Chân đế bắt bu lông neo vào sàn DƯL: phải tránh vùng cáp.
-    const tubeO = [], tubeI = [], tubeT = [], plates = [], thread = [], gM = std({color: 0xd8342c, metalness: 0.3, roughness: 0.5}), gI = std({color: 0xd8342c, metalness: 0.3, roughness: 0.45}), gP = std({color: 0x8e979f, metalness: 0.6, roughness: 0.4}), gT = std({color: 0xc9b46a, metalness: 0.7, roughness: 0.35}), gTb = std({color: 0xc9b46a, metalness: 0.7, roughness: 0.35});
+    const tubeO = [], tubeI = [], tubeT = [], plates = [], thread = [], gM = std({color: 0xb4bcc4, metalness: 0.75, roughness: 0.35}), gI = std({color: 0xc8cfd5, metalness: 0.75, roughness: 0.3}), gP = std({color: 0x8e979f, metalness: 0.6, roughness: 0.4}), gT = std({color: 0x7d858c, metalness: 0.7, roughness: 0.45}), gTb = std({color: 0xb4bcc4, metalness: 0.75, roughness: 0.35});   // thép mạ kẽm như thực tế
     const braceFaces = faces.filter(f => (f.n.x !== 0 ? (f.n.x < 0 ? c.x + c.b / 2 : c.x - c.b / 2) : (f.n.z > 0 ? c.y + c.h / 2 : c.y - c.h / 2)) > edge + 0.05 && !(f.n.x > 0 && c.x - c.b / 2 <= edge + 0.05) && !(f.n.z < 0 && c.y - c.h / 2 <= edge + 0.05));
     const braces = [];
     // Cây chống liên kết vào SÓNG ĐỨNG của tấm nhôm (sườn biên đứng tại mép giáp mí giữa 2 tấm) bằng bản mã bắt bu lông/chốt qua lỗ sườn;
@@ -278,7 +305,8 @@ const AL = (() => {
   const RPINFO = card('RP + WP – chốt ngắn + nêm', [['Phụ kiện', 'Chốt ngắn (Round pin) xuyên 2 sườn tấm kề nhau, khoá bằng nêm (Wedge)'], ['Bước', '@300 dọc mép tấm (theo lỗ chốt có sẵn)'], ['Tháo', 'Đóng trực tiếp vào đuôi nêm hoặc dùng dụng cụ tháo']]);
   const LPINFO = card('LP – chốt dài', [['Phụ kiện', 'Chốt dài (Long pin) nối dầm xương MB/EB với đầu chống PH, có thanh nẹp JB'], ['Vị trí', '2 đầu mỗi đầu chống']]);
   function pinAt(bt, bom, p, ax, kind = 'RP') {
-    PINM = PINM || lam(0xe0302a, {emissive: 0x400000}); WGM = WGM || lam(0xf39c12, {emissive: 0x3a2400});
+    // chốt + nêm thép mạ kẽm vàng (như thực tế)
+    PINM = PINM || std({color: 0xa88a3c, metalness: 0.7, roughness: 0.35, emissive: 0x241a04}); WGM = WGM || std({color: 0xdcbf5a, metalness: 0.65, roughness: 0.3, emissive: 0x2a2006});
     const [ex, ey, ez] = basisFor(ax), m = mtx(p, ex, ey, ez);
     if (kind === 'LP') { bt.add(lpGeo(), PINM, m, LPINFO); bomAdd(bom, 'LP – chốt dài', 0.35); return; }
     bt.add(pinGeo(), PINM, m, RPINFO); bt.add(wedgeGeo(), WGM, m, RPINFO); bomAdd(bom, 'RP + WP – chốt + nêm (bộ)', 0.25);
@@ -379,10 +407,9 @@ const AL = (() => {
           props.push({x: xm, y: ym, zt: soffit - 0.225, a: spanX, w: dy, q: q(0.22), where: 'Dưới đầu chống PH (sàn 220)'});
         } else if (stage === 'full') {
           const code = seg.code === 'MB' ? `MB150x${fmm(L)}` : `EB150x${fmm(L)}`, kg = KG[seg.code] * 0.15 * L;
-          const g = new THREE.Group(), m = box(sx.x0, sx.x1, seg.y0, seg.y1, soffit - 0.125, soffit, albBox);
-          m.userData.info = card(code, [['Loại', seg.code === 'MB' ? 'Dầm xương giữa (Middle beam) – 2 đầu vát ngược chiều' : 'Dầm xương cuối (End beam) – giữa góc sàn SC và đầu chống PH'],
-            ['Kích thước', `150 × 125 × ${fmm(L)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Lắp', 'Lắp bằng cao độ sàn, ≥ 3 công nhân; nối bằng thanh nẹp JB + chốt dài LP']]);
-          grp.add(m); bomAdd(bom, code, kg);
+          addMB(bt, L, alb, mtx(W(xm, ym, soffit), PX.clone(), PY.clone(), PZ.clone()), card(code, [['Loại', seg.code === 'MB' ? 'Dầm xương giữa (Middle beam) – 2 đầu vát ngược chiều' : 'Dầm xương cuối (End beam) – giữa góc sàn SC và đầu chống PH'],
+            ['Kích thước', `150 × 125 × ${fmm(L)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Lắp', 'Lắp bằng cao độ sàn, ≥ 3 công nhân; nối bằng thanh nẹp JB + chốt dài LP']]));
+          bomAdd(bom, code, kg);
         }
       }
     }
@@ -446,15 +473,43 @@ const AL = (() => {
     const gOut = new THREE.CylinderGeometry(0.0302, 0.0302, 1, 10); gOut.translate(0, 0.5, 0);
     const gIn = new THREE.CylinderGeometry(0.0243, 0.0243, 1, 10); gIn.translate(0, 0.5, 0);
     const gPl = new THREE.BoxGeometry(0.14, 0.0055, 0.14);
-    const mOut = new THREE.InstancedMesh(gOut, lam(0x3d7bd9), n), mIn = new THREE.InstancedMesh(gIn, lam(COL.prop), n), mPl = new THREE.InstancedMesh(gPl, lam(0x8a96a3), 2 * n);
+    // như thực tế: ống thép mạ kẽm, ống trong có hàng lỗ chốt chỉnh cao, đầu ống trong sơn đỏ, ống ren + đai ốc tại chỗ nối
+    if (!cache.holeTex) { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+      x.fillStyle = '#d3d9de'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#2a2f34';
+      for (const u of [8, 40]) { x.beginPath(); x.ellipse(u, 32, 5, 7, 0, 0, 2 * Math.PI); x.fill(); }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 10); cache.holeTex = t; }
+    const galv = std({color: 0xc3cad0, metalness: 0.75, roughness: 0.32});
+    const mOut = new THREE.InstancedMesh(gOut, galv, n), mIn = new THREE.InstancedMesh(gIn, std({color: 0xffffff, map: cache.holeTex, metalness: 0.7, roughness: 0.32}), n), mPl = new THREE.InstancedMesh(gPl, galv, 2 * n);
+    const gTip = new THREE.CylinderGeometry(0.0248, 0.0248, 0.12, 10), gNut = new THREE.CylinderGeometry(0.042, 0.042, 0.1, 10);
+    const mTip = new THREE.InstancedMesh(gTip, std({color: 0xd2321e, metalness: 0.2, roughness: 0.55}), n), mNut = new THREE.InstancedMesh(gNut, std({color: 0x9aa3ab, metalness: 0.8, roughness: 0.4}), n);
     props.forEach((p, i) => {
       const L = p.zt - zFloor, zo = Math.min(V4.out, L); p.L = L; p.load = p.a * p.w * p.q; p.cap = v4Cap(L);
       o.position.copy(W(p.x, p.y, zFloor)); o.scale.set(1, zo, 1); o.updateMatrix(); mOut.setMatrixAt(i, o.matrix);
       o.position.copy(W(p.x, p.y, zFloor + zo)); o.scale.set(1, Math.max(0.01, L - zo), 1); o.updateMatrix(); mIn.setMatrixAt(i, o.matrix);
       o.scale.set(1, 1, 1); o.position.copy(W(p.x, p.y, zFloor + 0.003)); o.updateMatrix(); mPl.setMatrixAt(2 * i, o.matrix);
       o.position.copy(W(p.x, p.y, zFloor + L)); o.updateMatrix(); mPl.setMatrixAt(2 * i + 1, o.matrix);
+      o.position.copy(W(p.x, p.y, zFloor + L - 0.07)); o.updateMatrix(); mTip.setMatrixAt(i, o.matrix);
+      o.position.copy(W(p.x, p.y, zFloor + zo - 0.02)); o.updateMatrix(); mNut.setMatrixAt(i, o.matrix);
     });
     bomAdd(bom, 'SPP Kumkang V4', 14.8, n);
+    // giằng ngang ống Ø48,6 + khoá cùm nối các cây chống ô sàn theo 2 phương (như ảnh công trường) – số tầng giằng theo biện pháp duyệt
+    const slabP = props.filter(p => p.where.startsWith('Dưới đầu chống')), br = [], cp = [], zB = zFloor + 1.6;
+    let brL = 0, nCp = 0;
+    const rows = (key, other) => { const g = new Map(); for (const p of slabP) { const k = Math.round(p[key] * 20); if (!g.has(k)) g.set(k, []); g.get(k).push(p); } return [...g.values()].map(r => r.sort((a, b) => a[other] - b[other])); };
+    for (const [key, other, dz, off] of [['y', 'x', 0, 0.056], ['x', 'y', 0.06, -0.056]]) for (const r of rows(key, other)) {
+      if (r.length < 2) continue;
+      const a = r[0], b = r[r.length - 1], z = zB + dz, e = 0.15;
+      const A = key === 'y' ? W(a.x - e, a.y + off, z) : W(a.x + off, a.y - e, z), B = key === 'y' ? W(b.x + e, b.y + off, z) : W(b.x + off, b.y + e, z);
+      prismSeg(br, A, B, 0.0243); brL += A.distanceTo(B);
+      for (const p of r) { const cx = key === 'y' ? p.x : p.x + off / 2, cy = key === 'y' ? p.y + off / 2 : p.y; addBox(cp, cx - 0.045, cx + 0.045, z - 0.03, z + 0.03, -cy - 0.045, -cy + 0.045); nCp++; }
+    }
+    if (br.length) {
+      const binf = () => ({title: 'Giằng ngang cây chống', rows: [['Cấu tạo', 'Ống thép mạ kẽm Ø48,6 chạy 2 phương, khoá cùm (coupler) vào từng cây chống ở cao +1,6 m'],
+        ['Khối lượng', `≈ ${brL.toFixed(1)} m ống, ${nCp} khoá cùm`], ['Công dụng', 'Chống mất ổn định cây chống, giữ thẳng hàng khi tháo sàn sớm'],
+        ['Lưu ý', 'Theo ảnh thực tế công trường – số tầng giằng/khoảng cách theo biện pháp Kumkang được duyệt']]});
+      const m1 = meshFrom(br, galv), m2 = meshFrom(cp, std({color: 0xc9a43a, metalness: 0.6, roughness: 0.4})); m1.userData.info = m2.userData.info = binf; pg.add(m1, m2);
+      bom['Giằng ngang ống Ø48,6 (m dài)'] = {n: Math.round(brL * 10) / 10, kg: brL * 3.6}; bomAdd(bom, 'Cùm khoá giằng (coupler)', 1.1, nCp);
+    }
     const pinfo = hit => { const p = props[hit && hit.instanceId != null ? hit.instanceId : 0], ok = p.L >= V4.min && p.L <= V4.max, r = p.load / p.cap;
       return {title: 'Cây chống SPP – Kumkang V4', rows: [
         ['Vị trí', `${p.where} · x=${p.x.toFixed(2)}, y=${p.y.toFixed(2)}`],
@@ -462,10 +517,10 @@ const AL = (() => {
         ['Diện chịu tải', `${p.a.toFixed(2)} × ${p.w.toFixed(2)} m`],
         ['Tải ước tính', `${p.load.toFixed(1)} kN (${p.q.toFixed(2)} kN/m²: bê tông + cốp pha + thi công ${LIVE})`],
         ['Tải cho phép', `≈ ${p.cap.toFixed(1)} kN ở chiều dài này · sử dụng ${(r * 100).toFixed(0)}%${r > 0.9 ? ' – SÁT GIỚI HẠN, cần Kumkang tính toán' : ''}`],
-        ['Ống', 'Ngoài Ø60,3×2,0 (xanh) · trong Ø48,6×2,2 (trắng) · đế/mũ 140×140'],
+        ['Ống', 'Thép mạ kẽm: ngoài Ø60,3×2,0 · trong Ø48,6×2,2 có hàng lỗ chỉnh cao, đầu sơn đỏ · đế/mũ 140×140'],
         ['Tháo', 'Khi mẫu bê tông đạt cường độ yêu cầu, sau kéo căng, ≥ 21 ngày (Rev02)']]}; };
-    mOut.userData.info = mIn.userData.info = pinfo;
-    pg.add(mOut, mIn, mPl); grp.add(pg);
+    mOut.userData.info = mIn.userData.info = mTip.userData.info = mNut.userData.info = pinfo;
+    pg.add(mOut, mIn, mPl, mTip, mNut); grp.add(pg);
     bt.build(grp);
     const usage = props.map(p => p.load / p.cap), maxU = Math.max(...usage);
     return {grp, bom, props, maxU, layout: {bx0, bx1, by0, by1, nD, line: best}};
