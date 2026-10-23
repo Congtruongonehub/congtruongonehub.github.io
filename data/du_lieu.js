@@ -3,7 +3,7 @@
 // Tem: o = tâm tem, u = chiều sang phải của tem, v = chiều xuống của tem, size = cạnh mã QR (m, không tính viền trắng).
 const SITE = {
   name: 'ONEHUB Saigon BP2',
-  ver: 'Thí điểm 1 · 22/10/2026',
+  ver: 'Thí điểm 2 · 23/10/2026 · cốp pha nhôm đổ toàn khối',
   src: 'Bản vẽ kết cấu RFR 29/08/2025 · Tiến độ Rev02',
   qrSize: 0.23,
   api: 'https://script.google.com/macros/s/AKfycbybV4P79y1EInFJmHF7qxePmOt5Nd6wjrqRCwfQnGmsvJbPCulNMs1oMiDjn9Gc7noR6g/exec',   // địa chỉ Ứng dụng web Google Apps Script (máy chủ hồ sơ)
@@ -20,22 +20,70 @@ const TAGS = {
 
 const ELEMS = {
   'C1a-T3': {
-    title: 'Cột C1 · tầng 3', sub: 'Trục 2.A / 2.1 · 1050×1050 · +10.025 → +14.125',
+    title: 'Cột C1 · tầng 3', sub: 'Trục 2.A / 2.1 · 1050×1050 · đợt đổ toàn khối C3 + S4',
     kind: 'col', col: 'C1-a', s: 2,
-    next: {scene: 'slabT4', label: 'Xem thi công sắp tới', hint: 'Sàn DƯL tầng 4 quanh cột: cây chống, cốp pha nhôm, thép dầm sàn, cáp'},
+    next: {scene: 'propsT4', label: 'Xem thi công sắp tới', hint: 'Dưới sàn T4: giữ cây chống V4, kéo căng cáp, tháo chống'},
     built: {scene: 'xrayColT3', label: 'Xem cấu tạo cột đã thi công', hint: 'Thép dọc, đai, lớp bảo vệ, đoạn nối, cao độ'},
   },
   'S4-C1a': {
-    title: 'Sàn tầng 4 · chân cột C1', sub: 'Trục 2.A / 2.1 · mặt sàn +14.125',
+    title: 'Sàn tầng 4 · chân cột C1', sub: 'Trục 2.A / 2.1 · mặt sàn +14.125 · đợt kế tiếp C4 + S5',
     kind: 'slab', col: 'C1-a', s: 3,
-    next: {scene: 'colT4', label: 'Xem thi công sắp tới', hint: 'Cột C1 tầng 4: nối thép, đai, cốp pha nhôm, bê tông'},
+    next: {scene: 'lift4', label: 'Xem thi công sắp tới', hint: 'Đợt C4 + S5 đổ toàn khối: thép cột, cốp pha nhôm, cây chống V4, thép dầm sàn, cáp'},
     built: {scene: 'xraySlabT4', label: 'Xem cấu tạo sàn đã thi công', hint: 'Thép dầm, thép sàn, cáp DƯL trong sàn'},
   },
 };
 
-// Bước thi công: ngày chia từ Tiến độ Rev02 (dòng 24: cột T3 + sàn DƯL T4 29/12/2026–15/01/2027; dòng 25: cột T4 từ 16/01/2027).
-// Ngày từng bước là dự kiến của BCH – chỉnh tại đây khi có lịch chi tiết.
+// Biện pháp: cốp pha nhôm Kumkang cho cột, vách, dầm, sàn – mỗi đợt đổ toàn khối "cột tầng n + sàn tầng n+1" (checklist NCC Rev06).
+// Ngày chia từ Tiến độ Rev02: dòng 24 (C3 + S4) 29/12/2026–15/01/2027; dòng 25 (C4 + S5) 16/01–15/02/2027, có nghỉ Tết (~06/02/2027).
+// Ngày từng bước là dự kiến – BCH chỉnh tại đây khi có lịch chi tiết.
 const STEPS = {
+  propsT4: [
+    {id: 'P4-1', name: 'Tháo tấm sàn sớm, giữ cây chống V4', from: '2027-01-13', to: '2027-01-15',
+      method: ['Sau đổ toàn khối C3 + S4 (dự kiến 12/01): tháo tấm nhôm sàn sớm, GIỮ đầu chống và cây chống V4 tại chỗ.',
+               'Cây chống V4 dài làm việc 2,6–4,0 m; dưới sàn 220 ≈ 3,7 m, gần mức kéo dài tối đa nên chỉ chịu ≈ 12 kN/cây.',
+               'Không tháo, không dời cây chống dưới dầm. Kiểm tra chân chống trước khi đổ đợt trên.',
+               'Bố trí đang là sơ bộ – theo bản bố trí và thuyết minh tính toán của Kumkang khi có.']},
+    {id: 'P4-2', name: 'Kéo căng cáp sàn T4', from: '2027-01-14', to: '2027-01-15',
+      method: ['Kéo căng khi bê tông đạt 25 MPa (C20/25) theo mẫu nén; lực 195,4 kN/tao.',
+               'Ghi biên bản độ giãn dài từng tao; bơm vữa ống cáp sau kéo căng.',
+               'Lưu ý: vách lõi đổ liền sàn có thể cản sàn co ngắn khi kéo căng – chờ ý kiến thiết kế DƯL.']},
+    {id: 'P4-3', name: 'Tháo cây chống sàn T4', from: '2027-02-02', to: '2027-02-03',
+      method: ['Chỉ tháo khi ĐỦ cả hai: ≥ 21 ngày sau đổ VÀ đã kéo căng xong (Rev02).',
+               'Luôn có 2 tầng chống cùng lúc (chu kỳ 17 ngày) – tính số lượng V4 theo 2 tầng.',
+               'Tháo theo thứ tự từ giữa nhịp ra gối; không tháo dưới dầm trước sàn.']},
+    {id: 'P4-4', name: 'Bàn giao tầng 3 cho MEP, xây tô', from: '2027-02-04', to: '2027-02-05',
+      method: ['Dọn sạch cây chống, phụ kiện; kiểm tra nứt sàn, võng sàn trước khi bàn giao.',
+               'Đánh dấu vị trí cáp DƯL dưới đáy sàn: CẤM khoan, bắn vít trong vùng cáp.']},
+  ],
+  lift4: [
+    {id: 'L4-1', name: 'Thép cột, vách tầng 4', from: '2027-01-16', to: '2027-01-18',
+      method: ['Cột C1: 36Ø25 CB500-V. Nối chồng 41Ø = 1025 mm từ +100 trên mặt sàn, so le 2 nhóm ≤ 50% (S-00-02 mục XII).',
+               'Đai Ø12a100 thân cột, a200 vùng nút; lớp bảo vệ 40 mm tới mép đai.',
+               'Nghiệm thu thép cột trước khi đóng cốp pha nhôm.']},
+    {id: 'L4-2', name: 'Cốp pha nhôm cột, vách', from: '2027-01-19', to: '2027-01-20',
+      method: ['Tấm nhôm dày 65; kicker xẻ rãnh d14 @200 cho thép biện pháp (checklist Rev06).',
+               'Kiểm tra tim, độ thẳng đứng ≤ H/1000, chốt nêm và ty giằng đủ trước khi đổ.']},
+    {id: 'L4-3', name: 'Cốp pha nhôm dầm, sàn + cây chống V4', from: '2027-01-21', to: '2027-01-25',
+      method: ['Tấm sàn nhôm, đầu chống (drop head); cây chống V4 sơ bộ: sàn 1,2 × 1,0 m, dầm 0,9 m dọc dầm, hàng cách ≤ 0,6 m.',
+               'Dưới sàn 220: V4 ≈ 3,7 m, tải ≈ 9,3 kN/cây (sát 12 kN cho phép). Dưới dầm 700: tải ≈ 20 kN/m².',
+               'Thành dầm biên cao hơn sàn 50 mm, công trường gia cố thêm. Vùng sàn hạ 50: rocker 50 (chờ BCH chốt).',
+               'Mặt cốp pha sàn +18.005; đáy dầm +17.625 (h 600) / +17.525 (h 700).']},
+    {id: 'L4-4', name: 'Thép dầm, thép sàn, ống chờ MEP', from: '2027-01-26', to: '2027-01-29',
+      method: ['Lớp bảo vệ dầm 35 mm; thép sàn theo S-32-02 (tầng điển hình 3–9).',
+               'Nối chồng 41Ø, neo 42Ø. Đặt ống chờ, hộp kỹ thuật MEP trước khi rải cáp.']},
+    {id: 'L4-5', name: 'Rải cáp DƯL', from: '2027-01-30', to: '2027-02-01',
+      method: ['Tao 15,24 mm Gr.270, ống dẹt (45~90) × 25.',
+               'Cao độ tâm cáp: trên gối 72,5 mm từ mặt sàn; giữa nhịp 52,5 mm từ đáy; đầu neo 110 mm.']},
+    {id: 'L4-6', name: 'Nghiệm thu trước đổ với TVGS', from: '2027-02-02', to: '2027-02-02',
+      method: ['Nghiệm thu thép cột vách, cốp pha nhôm, cây chống, thép dầm sàn, cáp, ống chờ MEP.',
+               'Tải biên bản và ảnh lên mục Hồ sơ nghiệm thu của tem này.']},
+    {id: 'L4-7', name: 'Đổ bê tông toàn khối C4 + S5', from: '2027-02-03', to: '2027-02-03',
+      method: ['Cột vách C30/37, sàn DƯL C28/35 nhưng đổ một lần: CHỜ TVTK chấp thuận phương án mác (đổ cả khối C30/37 hoặc đổ cột trước, sàn sau khi bê tông cột chưa ninh kết, có lưới chặn).',
+               'Đổ liên tục, đầm kỹ đầu cột và vùng neo cáp.']},
+    {id: 'L4-8', name: 'Kéo căng cáp sàn T5', from: '2027-02-13', to: '2027-02-15',
+      method: ['Sau Tết; kéo căng khi đạt 25 MPa theo mẫu; 195,4 kN/tao.',
+               'Giữ cây chống tầng dưới theo quy định ≥ 21 ngày và sau kéo căng.']},
+  ],
   slabT4: [
     {id: 'S4-1', name: 'Cây chống + cốp pha nhôm dầm, sàn', from: '2027-01-01', to: '2027-01-05',
       method: ['Cây chống nhôm lưới ≤ 1,2 × 1,2 m dưới sàn; dưới dầm theo hàng (sơ bộ – chờ shop drawing NCC cốp pha nhôm).',

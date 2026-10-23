@@ -138,36 +138,56 @@ function inBeam(x, y, pad = 0) {
 const inCol = (x, y, pad = 0.15) => MD.COLS.some(c => Math.abs(x - c.x) <= c.b/2 + pad && Math.abs(y - c.y) <= c.h/2 + pad);
 const inside = (x, y) => x >= Math.max(RX0, EDGE) && x <= RX1 && y >= Math.max(RY0, EDGE) && y <= RY1;
 
+// Cây chống thép Kumkang V4 (bản vẽ NCC): dài làm việc 2,6–4,0 m; ống ngoài Ø60,3×2,0 dài 1,7 m, ống trong Ø48,6×2,2;
+// tải cho phép 1.800 kgf (thu ngắn) → 1.200 kgf (kéo dài hết); đế + mũ 140×140×5,5.
+const V4 = {min: 2.6, max: 4.0, out: 1.7, pClosed: 17.65, pExt: 11.77};
+const v4Cap = L => V4.pClosed + (V4.pExt - V4.pClosed) * Math.min(1, Math.max(0, (L - V4.min) / (V4.max - V4.min)));
+const LIVE = 2.0, FORM = 0.25;   // kN/m²: tải thi công (TCVN 4453: 1,5–2,5), cốp pha nhôm
+// Bước chống sơ bộ (chờ bản bố trí + thuyết minh của Kumkang): sàn 1,2 × 1,0 m; dầm 0,9 m dọc dầm, hàng cách ≤ 0,6 m.
 function buildProps(zFloor, zTop) {
   const g = new THREE.Group(), P = [];
-  const soffit = zTop - 0.22, deckB = soffit - 0.065;
-  for (let x = EDGE + 0.6; x < RX1; x += 1.2) for (let y = EDGE + 0.6; y < RY1; y += 1.2)
-    if (!inBeam(x, y, 0.1) && !inCol(x, y)) P.push([x, y, deckB]);
+  const soffit = zTop - 0.22, deckB = soffit - 0.065, qS = 25 * 0.22 + FORM + LIVE;
+  for (let x = EDGE + 0.6; x < RX1; x += 1.2) for (let y = EDGE + 0.5; y < RY1; y += 1.0)
+    if (!inBeam(x, y, 0.1) && !inCol(x, y)) P.push({x, y, zt: deckB, a: 1.2, w: 1.0, q: qS, where: 'Dưới sàn dày 220'});
   for (const b of beamsReg()) {
-    const nr = b.b <= 0.8 ? 1 : Math.ceil(b.b / 1.0), rows = Array.from({length: nr}, (_, i) => -b.b/2 + b.b*(i+0.5)/nr);
-    const zb = zTop - b.h - 0.065;
-    for (let u = b.lo + 0.6; u < b.hi; u += 1.2) for (const w of rows) {
+    const nr = Math.max(1, Math.ceil(b.b / 0.6)), rows = Array.from({length: nr}, (_, i) => -b.b/2 + b.b*(i+0.5)/nr);
+    const zb = zTop - b.h - 0.065, q = 25 * b.h + FORM + LIVE;
+    for (let u = b.lo + 0.45; u < b.hi; u += 0.9) for (const w of rows) {
       const [x, y] = b.o === 'EW' ? [u, b.c + w] : [b.c + w, u];
-      if (inside(x, y) && !inCol(x, y, 0.25)) P.push([x, y, zb]);
+      if (inside(x, y) && !inCol(x, y, 0.25)) P.push({x, y, zt: zb, a: 0.9, w: b.b / nr, q, where: `Dưới dầm ${b.did} ${mm(b.b)}×${mm(b.h)}`});
     }
   }
-  const tube = new THREE.CylinderGeometry(0.03, 0.03, 1, 8); tube.translate(0, 0.5, 0);
-  const plate = new THREE.BoxGeometry(0.15, 0.012, 0.15);
-  const mT = new THREE.InstancedMesh(tube, lam(COL.prop), P.length), mH = new THREE.InstancedMesh(plate, lam(0xf5c400), P.length * 2);
-  const o = new THREE.Object3D();
-  P.forEach(([x, y, zt], i) => {
-    o.position.copy(W(x, y, zFloor)); o.scale.set(1, zt - zFloor, 1); o.updateMatrix(); mT.setMatrixAt(i, o.matrix);
-    o.scale.set(1, 1, 1); o.position.copy(W(x, y, zFloor + 0.006)); o.updateMatrix(); mH.setMatrixAt(2*i, o.matrix);
-    o.position.copy(W(x, y, zt - 0.006)); o.updateMatrix(); mH.setMatrixAt(2*i+1, o.matrix);
+  const n = P.length, o = new THREE.Object3D();
+  const gOut = new THREE.CylinderGeometry(0.0302, 0.0302, 1, 10); gOut.translate(0, 0.5, 0);
+  const gIn = new THREE.CylinderGeometry(0.0243, 0.0243, 1, 10); gIn.translate(0, 0.5, 0);
+  const gPl = new THREE.BoxGeometry(0.14, 0.0055, 0.14), gHd = new THREE.BoxGeometry(0.15, 0.1, 0.15);
+  const mOut = new THREE.InstancedMesh(gOut, lam(0x3d7bd9), n), mIn = new THREE.InstancedMesh(gIn, lam(COL.prop), n);
+  const mPl = new THREE.InstancedMesh(gPl, lam(0x8a96a3), 2 * n), mHd = new THREE.InstancedMesh(gHd, lam(0xf5c400), n);
+  P.forEach((p, i) => {
+    const L = p.zt - 0.1 - zFloor, zo = Math.min(V4.out, L);   // 0,1 m đầu chống / drop head trên cùng
+    p.L = L; p.load = p.a * p.w * p.q; p.cap = v4Cap(L);
+    o.rotation.set(0, 0, 0);
+    o.position.copy(W(p.x, p.y, zFloor)); o.scale.set(1, zo, 1); o.updateMatrix(); mOut.setMatrixAt(i, o.matrix);
+    o.position.copy(W(p.x, p.y, zFloor + zo)); o.scale.set(1, Math.max(0.01, L - zo), 1); o.updateMatrix(); mIn.setMatrixAt(i, o.matrix);
+    o.scale.set(1, 1, 1); o.position.copy(W(p.x, p.y, zFloor + 0.003)); o.updateMatrix(); mPl.setMatrixAt(2 * i, o.matrix);
+    o.position.copy(W(p.x, p.y, zFloor + L)); o.updateMatrix(); mPl.setMatrixAt(2 * i + 1, o.matrix);
+    o.position.copy(W(p.x, p.y, zFloor + L + 0.05)); o.updateMatrix(); mHd.setMatrixAt(i, o.matrix);
   });
-  mT.userData.info = () => ({title: 'Cây chống cốp pha nhôm', rows: [
-    ['Số lượng (vùng hiển thị)', `${P.length} cây`],
-    ['Chiều cao', `${(deckB - zFloor).toFixed(2)} m dưới sàn · tới đáy cốp pha dầm dưới dầm`],
-    ['Bước', '≈ 1,2 × 1,2 m (sơ bộ – theo shop drawing NCC khi có)'],
-    ['Chân chống', `Mặt sàn tầng 3 ${fmtLv(zFloor)}`],
-    ['Tháo chống', '≥ 21 ngày và sau khi kéo căng cáp'],
-  ]});
-  g.add(mT, mH); return g;
+  const info = hit => {
+    const p = P[hit && hit.instanceId != null ? hit.instanceId : 0], ok = p.L >= V4.min && p.L <= V4.max, r = p.load / p.cap;
+    return {title: 'Cây chống thép Kumkang V4', rows: [
+      ['Vị trí', `${p.where} · x=${p.x.toFixed(1)}, y=${p.y.toFixed(1)}`],
+      ['Chiều dài làm việc', `${p.L.toFixed(2)} m ${ok ? '(trong phạm vi 2,6–4,0 m)' : '– NGOÀI phạm vi V4, cần loại khác'}`],
+      ['Bước chống', `${p.a.toFixed(2)} × ${p.w.toFixed(2)} m (sơ bộ)`],
+      ['Tải ước tính', `${p.load.toFixed(1)} kN (${p.q.toFixed(2)} kN/m² gồm bê tông, cốp pha, thi công ${LIVE})`],
+      ['Tải cho phép', `≈ ${p.cap.toFixed(1)} kN ở chiều dài này · sử dụng ${(r * 100).toFixed(0)}%${r > 0.9 ? ' – SÁT GIỚI HẠN' : ''}`],
+      ['Ống', 'Ngoài Ø60,3×2,0 (xanh) · trong Ø48,6×2,2 (trắng) · đế/mũ 140×140'],
+      ['Tháo chống', 'Tháo tấm sàn sớm, giữ cây chống ≥ 21 ngày và sau khi kéo căng cáp'],
+      ['Ghi chú', 'Bố trí sơ bộ – thay bằng bản bố trí + tính toán của Kumkang khi có'],
+    ]};
+  };
+  for (const m of [mOut, mIn, mHd]) m.userData.info = info;
+  g.add(mOut, mIn, mPl, mHd); g.userData.props = P; return g;
 }
 function buildDeck(zTop) {
   const g = new THREE.Group(), soffit = zTop - 0.22, mat = ghost(COL.deck, 0.5), seg = [];
@@ -182,7 +202,7 @@ function buildDeck(zTop) {
     const hb = b.h, drop = hb - 0.22, zb = zTop - hb, fm = ghost(COL.form, 0.55);
     const P = (u0, u1, w0, w1, z0, z1) => b.o === 'EW' ? box(u0, u1, b.c + w0, b.c + w1, z0, z1, fm) : box(b.c + w0, b.c + w1, u0, u1, z0, z1, fm);
     const parts = [P(b.lo, b.hi, -b.b/2, b.b/2, zb - 0.065, zb), P(b.lo, b.hi, -b.b/2 - 0.065, -b.b/2, zb - 0.065, zb + drop), P(b.lo, b.hi, b.b/2, b.b/2 + 0.065, zb - 0.065, zb + drop)];
-    for (const m of parts) { m.userData.info = () => ({title: `Cốp pha dầm ${b.did}`, rows: [['Đáy dầm', fmtLv(zb) + ` (h ${mm(hb)})`], ['Bề rộng', mm(b.b) + ' mm'], ['Chống đáy', b.b <= 0.8 ? '1 hàng' : Math.ceil(b.b) + ' hàng']]}); g.add(m); }
+    for (const m of parts) { m.userData.info = () => ({title: `Cốp pha dầm ${b.did}`, rows: [['Đáy dầm', fmtLv(zb) + ` (h ${mm(hb)})`], ['Bề rộng', mm(b.b) + ' mm'], ['Chống đáy', `V4, ${Math.max(1, Math.ceil(b.b / 0.6))} hàng, bước 0,9 m dọc dầm (sơ bộ)`]]}); g.add(m); }
   }
   return g;
 }
@@ -243,6 +263,28 @@ function colFormwork(c, z0, z1) {
 }
 function phantomBox(x0, x1, y0, y1, z0, z1) { const m = box(x0, x1, y0, y1, z0, z1, PHANTOM); m.renderOrder = -1; m.userData.phantom = true; return m; }
 
+// Bối cảnh toàn sàn (chỉ hiện ở chế độ 3D): cột, lõi, sàn dạng khối mờ để thấy vị trí ô sàn thí điểm trong cả mặt bằng
+const BLD = [-0.455, 76.655, -0.455, 28.655];
+function buildContext(name) {
+  const g = new THREE.Group(), fl = (z0, z1, op) => {
+    const m = new THREE.MeshLambertMaterial({color: COL.conc, transparent: true, opacity: op, depthWrite: false});
+    const b = box(BLD[0], BLD[1], BLD[2], BLD[3], z0, z1, m); g.add(b);
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry), new THREE.LineBasicMaterial({color: 0x6b7785})));
+    for (const [, o, c, bw, h, lo, hi] of MD.BEAMS_ALL) {
+      const e = o === 'EW' ? box(lo, hi, c - bw/2, c + bw/2, z1 - h, z0, m) : box(c - bw/2, c + bw/2, lo, hi, z1 - h, z0, m); g.add(e); }
+  };
+  const cols = (z0, z1, op) => {
+    const m = new THREE.MeshLambertMaterial({color: 0x8d98a5, transparent: true, opacity: op, depthWrite: false});
+    for (const c of MD.ALLCOLS) g.add(box(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, z0, z1, m));
+    for (const k of MD.CORES) for (const [x1, y1, x2, y2, t] of k.walls) {
+      const h = t / 2; g.add(box(Math.min(x1, x2) - h, Math.max(x1, x2) + h, Math.min(y1, y2) - h, Math.max(y1, y2) + h, z0, z1, m)); }
+  };
+  const z3 = LV['3FL'], z4 = LV['4FL'], z5 = LV['5FL'];
+  if (name === 'lift4' || name === 'xraySlabT4') { fl(z4 - 0.22, z4, 0.16); cols(z4, z5 - 0.22, 0.12); fl(z5 - 0.22, z5, 0.06); }
+  else { fl(z3 - 0.22, z3, 0.1); cols(z3, z4 - 0.22, 0.16); fl(z4 - 0.22, z4, 0.12); }
+  g.userData.context = true; return g;
+}
+
 function buildScene(name) {
   core();
   const root = new THREE.Group(), steps = [], C1 = MD.COLS.find(c => c.id === 'C1-a');
@@ -267,6 +309,31 @@ function buildScene(name) {
     const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT4, zT5 - 0.7, ghost(COL.conc, 0.3)); cc.userData.info = () => infoCol(rec, 3); add('C4-4', cc);
     root.add(label('Đỉnh cột = đáy dầm ' + fmtLv(zT5 - 0.7), C1.x + C1.b/2 + 0.15, C1.y, zT5 - 0.7));
     root.add(label('Mặt sàn T4 ' + fmtLv(zT4), C1.x + C1.b/2 + 0.15, C1.y, zT4 + 0.1, {fg: '#cfd8e3'}));
+  } else if (name === 'propsT4') {
+    // Đứng ở sàn T3 (đợt C3 + S4 đã đổ toàn khối): việc sắp tới dưới sàn T4
+    for (const c of MD.COLS) root.add(phantomBox(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, zT3, zT4 - 0.7));
+    root.add(phantomBox(EDGE, RX1, EDGE, RY1, zT4 - 0.22, zT4));
+    const sc = slabConcrete(zT4, 0.12); sc.userData.only3d = true; root.add(sc);
+    add('P4-1', buildProps(zT3, zT4));
+    add('P4-2', slabPT('4FL'));
+    root.add(label('Đáy sàn T4 ' + fmtLv(zT4 - 0.22), C1.x + 1.6, C1.y + 1.6, zT4 - 0.35));
+    root.add(label('Mặt sàn T3 ' + fmtLv(zT3), C1.x + 1.6, C1.y + 1.6, zT3 + 0.15, {fg: '#cfd8e3'}));
+  } else if (name === 'lift4') {
+    // Đứng trên sàn T4: đợt kế tiếp C4 + S5, cốp pha nhôm, đổ toàn khối
+    root.add(phantomBox(EDGE, RX1, EDGE, RY1, zT4 - 0.22, zT4));
+    const rec = colRec('C1-a'), e = rec.st[2], top = zT5 - 0.7;
+    const s1 = new THREE.Group(); s1.add(colSteel('C1-a', 3, zT4));
+    if (e.lap) s1.add(box(C1.x - C1.b/2 - 0.04, C1.x + C1.b/2 + 0.04, C1.y - C1.h/2 - 0.04, C1.y + C1.h/2 + 0.04, e.lap.z0, e.lap.z2, M.lap1));
+    add('L4-1', s1);
+    add('L4-2', colFormwork(C1, zT4, top));
+    const s3 = new THREE.Group(); s3.add(buildProps(zT4, zT5), buildDeck(zT5)); add('L4-3', s3);
+    add('L4-4', slabSteel('5FL'));
+    add('L4-5', slabPT('5FL'));
+    const s7 = new THREE.Group(), cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT4, top, ghost(COL.conc, 0.3));
+    cc.userData.info = () => infoCol(rec, 3); s7.add(cc, slabConcrete(zT5, 0.28)); add('L4-7', s7);
+    if (e.lap) root.add(label(`Nối thép cột ${fmtLv(e.lap.z0)} → ${fmtLv(e.lap.z2)}`, C1.x + C1.b/2 + 0.6, C1.y, (e.lap.z0 + e.lap.z2) / 2));
+    root.add(label('Mặt sàn T5 ' + fmtLv(zT5), C1.x + 1.6, C1.y + 1.6, zT5 + 0.15));
+    root.add(label('Mặt sàn T4 ' + fmtLv(zT4), C1.x + 1.6, C1.y + 1.6, zT4 + 0.15, {fg: '#cfd8e3'}));
   } else if (name === 'xrayColT3') {
     const rec = colRec('C1-a'), e = rec.st[2];
     const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT3, zT4 - 0.7, ghost(COL.conc, 0.18)); cc.userData.info = () => infoCol(rec, 2); root.add(cc);
@@ -311,7 +378,10 @@ const shown = new Set();
 
 function setContent(sceneName) {
   if (cur) scene.remove(cur);
-  cur = buildScene(sceneName); scene.add(cur);
+  cur = buildScene(sceneName);
+  if (view === '3d') cur.add(buildContext(sceneName));
+  else cur.traverse(o => { if (o.userData.only3d) o.visible = false; });
+  scene.add(cur);
   const isNext = curMode === 'next';
   shown.clear();
   // 'sắp tới': mặc định hiện bước kế tiếp chưa xong; chạm thẻ bước để thêm/bớt. 'đã thi công': hiện tất cả.
@@ -364,9 +434,13 @@ function start3D(mode) {
   setContent(curEl[mode].scene);
   const t = TAGS[curTag]; const o = W(...t.o);
   if (!controls) { controls = new THREE.OrbitControls(cam3D, canvas); controls.enableDamping = true; }
-  const tgt = o.clone(); if (curEl[mode].scene === 'slabT4') tgt.y = LV['4FL'] - 1.2; if (curEl[mode].scene === 'colT4') tgt.y = LV['4FL'] + 1.8;
-  controls.target.copy(tgt);
-  cam3D.position.copy(tgt).add(new THREE.Vector3(7, 1.2, -7.5)); controls.update();
+  // nhìn từ trong nhà về góc trục 2.A/2.1: thấy rõ ô sàn quanh cột C1, phía sau là toàn sàn mờ
+  const sc = curEl[mode].scene, zc = (sc === 'lift4' || sc === 'xraySlabT4' ? LV['4FL'] : LV['3FL']) + 2.0;
+  let tgt, pos;
+  if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
+  else if (sc === 'propsT4') { tgt = W(3.5, 4.0, LV['3FL'] + 1.6); pos = W(13, 12, LV['3FL'] + 2.4); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
+  else { tgt = W(4.5, 5.5, zc); pos = W(15, 16, zc + 5.5); }
+  controls.target.copy(tgt); cam3D.position.copy(pos); controls.update();
   markTag(true); resize();
 }
 let tagMark = null;
