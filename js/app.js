@@ -332,7 +332,8 @@ function buildScene(name) {
     for (const c of MD.COLS) root.add(phantomBox(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, zT3, zT4 - 0.7));
     root.add(phantomBox(EDGE, RX1, EDGE, RY1, zT4 - 0.22, zT4));
     const sc = slabConcrete(zT4, 0.12); sc.userData.only3d = true; root.add(sc);
-    add('P4-1', buildProps(zT3, zT4));
+    const al = AL.slab(beamsReg(), zT3, zT4, EDGE, 'early'); add('P4-1', al.grp);
+    root.userData.bom = {'P4-1': AL.bomRows(al.bom)};
     add('P4-2', slabPT('4FL'));
     root.add(label('Đáy sàn T4 ' + fmtLv(zT4 - 0.22), C1.x + 1.6, C1.y + 1.6, zT4 - 0.35));
     root.add(label('Mặt sàn T3 ' + fmtLv(zT3), C1.x + 1.6, C1.y + 1.6, zT3 + 0.15, {fg: '#cfd8e3'}));
@@ -343,8 +344,9 @@ function buildScene(name) {
     const s1 = new THREE.Group(); s1.add(colSteel('C1-a', 3, zT4));
     if (e.lap) s1.add(box(C1.x - C1.b/2 - 0.04, C1.x + C1.b/2 + 0.04, C1.y - C1.h/2 - 0.04, C1.y + C1.h/2 + 0.04, e.lap.z0, e.lap.z2, M.lap1));
     add('L4-1', s1);
-    add('L4-2', colFormwork(C1, zT4, top));
-    const s3 = new THREE.Group(); s3.add(buildProps(zT4, zT5), buildDeck(zT5)); add('L4-3', s3);
+    const alc = AL.column(C1, zT4, top); add('L4-2', alc.grp);
+    const als = AL.slab(beamsReg(), zT4, zT5, EDGE, 'full'); add('L4-3', als.grp);
+    root.userData.bom = {'L4-2': AL.bomRows(alc.bom), 'L4-3': [['Cây chống làm việc lớn nhất', `${(als.maxU * 100).toFixed(0)}% tải cho phép V4`]].concat(AL.bomRows(als.bom))};
     add('L4-4', slabSteel('5FL'));
     add('L4-5', slabPT('5FL'));
     const s7 = new THREE.Group(), cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT4, top, ghost(COL.conc, 0.3));
@@ -423,7 +425,8 @@ function renderSteps() {
 $('#steps').addEventListener('click', e => {
   const b = e.target.closest('.step'); if (!b || b.disabled) return;
   const id = b.dataset.id; shown.has(id) ? shown.delete(id) : shown.add(id); applySteps(); renderSteps();
-  const st = cur.userData.steps.find(s => s.id === id); if (shown.has(id)) showInfo({title: st.name, rows: st.method.map((m, i) => ['Biện pháp ' + (i + 1), m])});
+  const st = cur.userData.steps.find(s => s.id === id), bom = (cur.userData.bom || {})[id] || [];
+  if (shown.has(id)) showInfo({title: st.name, rows: st.method.map((m, i) => ['Biện pháp ' + (i + 1), m]).concat(bom.length ? [['—', '<b>Thống kê cấu kiện (mô phỏng)</b>']].concat(bom) : [])});
 });
 
 function showInfo(inf) {

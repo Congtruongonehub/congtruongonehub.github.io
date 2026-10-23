@@ -57,7 +57,7 @@ body.m3d .status{display:none}
 #info{position:absolute;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom) + 96px);max-height:46vh;overflow:auto;padding:14px 16px;border-radius:var(--r);background:var(--panel);border:1px solid #3a4652;backdrop-filter:blur(6px)}
 #info h3{margin:0 34px 8px 0;font-size:16.5px;color:var(--acc)}
 #info dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}
-#info dt{color:var(--mut)}#info dd{margin:0}
+#info dt{color:var(--mut);max-width:42vw;overflow-wrap:anywhere}#info dd{margin:0}
 #info .x{position:absolute;top:6px;right:6px;width:40px;height:40px;border:0;background:none;font-size:26px;cursor:pointer;color:var(--mut)}
 #settings{position:absolute;right:max(12px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 64px);width:min(320px,calc(100% - 24px));padding:14px;border-radius:var(--r);background:var(--panel);border:1px solid #3a4652;font-size:14px}
 #settings input{width:100%}
@@ -165,6 +165,7 @@ body.m3d .status{display:none}
 <script src="data/du_lieu.js"></script>
 <script src="js/rebar_core.js"></script>
 <script src="js/bs_core.js"></script>
+<script src="js/alform.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
