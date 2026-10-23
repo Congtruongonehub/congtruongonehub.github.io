@@ -1,7 +1,7 @@
 // Lưu sẵn trang để mở nhanh khi sóng yếu; hồ sơ nghiệm thu luôn lấy bản mới nhất nếu có mạng
-const V = 'onehub-ar-v17';
+const V = 'onehub-ar-v18';
 const FILES = ['./', 'index.html', 'lib/three.min.js', 'lib/OrbitControls.js', 'lib/jsQR.js', 'data/model_data.js', 'data/du_lieu.js',
-  'js/rebar_core.js', 'js/bs_core.js', 'js/alform.js', 'js/app.js', 'js/qr_worker.js', 'manifest.webmanifest'];
+  'js/rebar_core.js', 'js/bs_core.js', 'js/alform.js', 'js/app.js', 'js/xr.js', 'js/qr_worker.js', 'manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', e => {

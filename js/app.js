@@ -454,7 +454,7 @@ function openTag(tok) {
   $('#b-nt').querySelector('small').textContent = nrec ? `${nrec} hồ sơ` : 'Chưa có hồ sơ';
   return true;
 }
-function goHome() { stopAR(); view = 'home'; show('v-home'); $('#home-tag').hidden = !curEl; $('#home-scan').hidden = !!curEl; }
+function goHome() { if (view === 'xr' && typeof XR !== 'undefined') { XR.end(); return; } stopAR(); view = 'home'; show('v-home'); $('#home-tag').hidden = !curEl; $('#home-scan').hidden = !!curEl; }
 
 // ---------- chế độ 3D (không camera) ----------
 function start3D(mode) {
@@ -821,6 +821,7 @@ $('#tb-set').onclick = () => { $('#settings').hidden = !$('#settings').hidden; }
   const tok = (location.hash || '').slice(1);
   if (tok && openTag(tok)) {} else curEl = null;
   goHome();
+  if (qs.get('xr') && curEl) { const m = $('#xr-msg'); m.textContent = 'Đã mở trong App Clip – bấm nút "AR bám không gian" để bắt đầu.'; m.hidden = false; }
   if (qs.get('auto')) { const m = qs.get('auto'); m.startsWith('3d') ? start3D(m.slice(2)) : startAR(m); }
   loop();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
