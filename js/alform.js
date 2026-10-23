@@ -64,6 +64,11 @@ const AL = (() => {
   function bomAdd(bom, code, kg, n = 1) { const r = bom[code] || (bom[code] = {n: 0, kg: 0}); r.n += n; r.kg += kg * n; }
   const card = (code, rows) => () => ({title: `${code}`, rows});
 
+  // Bước la theo chiều cao đổ: 300 trong 1,2 m dưới cùng (áp lực bê tông lớn nhất), 600 phía trên – SƠ BỘ, chờ shop drawing / CHT xác nhận
+  const LA = {low: 0.3, lowH: 1.2, high: 0.6, first: 0.15};
+  function laSteps(H) { const z = []; for (let d = LA.first; d < H - 0.1; d += d < LA.lowH ? LA.low : LA.high) z.push(d); return z; }
+  const laText = st => `${st.length} lớp: @${fmm(LA.low)} trong ${LA.lowH.toFixed(1).replace('.', ',')} m dưới, @${fmm(LA.high)} phía trên (sơ bộ – chờ xác nhận)`;
+
   // Chia chiều dài thành các tấm có sẵn (mm): ưu tiên tổ hợp vừa khít; nếu không khít, phần dư thành 1 tấm cắt ≥ 150
   function split(total, sizes) {
     const T = Math.round(total * 1000), S = sizes.slice().sort((a, b) => b - a);
@@ -88,7 +93,8 @@ const AL = (() => {
     ];
     for (const f of faces) {
       const ez = f.n.clone(), ey = PZ.clone(), ex = new THREE.Vector3().crossVectors(ey, ez);
-      const widths = split(f.w, [600, 450, 400, 350, 300, 250, 200]);
+      let widths = split(f.w, [600, 450, 400, 350, 300, 250, 200]);
+      if (f.n.x > 0 || f.n.z < 0) widths = widths.slice().reverse();   // mặt đối diện: đảo để mép giáp mí thẳng hàng, xỏ la xuyên cột
       let off = -f.w / 2;
       for (const wd of widths) {
         let z = z0;
@@ -113,6 +119,27 @@ const AL = (() => {
         }
         off += wd;
       }
+    }
+    // Thanh la (Flat tie) xuyên cột qua khe xỏ la ở mép giáp mí đứng giữa 2 tấm; bước dày ở dưới (áp lực bê tông lớn)
+    const ftArr = [], ftSteps = laSteps(H), ftL = [];
+    const sx = split(c.b, [600, 450, 400, 350, 300, 250, 200]), sy = split(c.h, [600, 450, 400, 350, 300, 250, 200]);
+    let acc = 0; const seamX = sx.slice(0, -1).map(w => (acc += w, c.x - c.b / 2 + acc)); acc = 0;
+    const seamY = sy.slice(0, -1).map(w => (acc += w, c.y + c.h / 2 - acc));
+    const ext = RIB + 0.03;
+    for (const dz of ftSteps) {
+      const z = z0 + dz;
+      for (const yy of seamY) { addBox(ftArr, c.x - c.b / 2 - ext, c.x + c.b / 2 + ext, z - 0.016, z + 0.016, -yy - 0.0015, -yy + 0.0015); ftL.push(c.b + 2 * ext); }
+      for (const xx of seamX) { addBox(ftArr, xx - 0.0015, xx + 0.0015, z + 0.034, z + 0.066, -(c.y + c.h / 2 + ext), -(c.y - c.h / 2 - ext)); ftL.push(c.h + 2 * ext); }
+    }
+    if (ftArr.length) {
+      const fm = meshFrom(ftArr, lam(0x2d6cdf, {emissive: 0x0b1d40}));
+      fm.userData.info = card('FT – Thanh la (Flat tie) xuyên cột', [
+        ['Vị trí', `Mép giáp mí đứng giữa 2 tấm (khe xỏ la): ${seamY.length} đường phương X, ${seamX.length} đường phương Y; 2 phương lệch nhau 50 mm`],
+        ['Bước la', laText(ftSteps)],
+        ['Cấu tạo', 'Thép dẹt dày 3, bản 32; chốt RP xuyên lỗ la và 2 sườn biên, khoá nêm WP'],
+        ['Số lượng', `${ftL.length} thanh, tổng ≈ ${ftL.reduce((a, b) => a + b, 0).toFixed(1)} m`],
+        ['Sau khi tháo', 'La nằm lại trong bê tông – bẻ đầu la bằng dụng cụ bẻ la, mài phẳng, trám']]);
+      grp.add(fm); bomAdd(bom, 'FT – thanh la xuyên cột', 0.75 * 1.2, ftL.length);
     }
     // Góc ngoài CA (63,5 + 63,5) ở 4 góc cột, đủ chiều cao
     const caLen = split(H, [2400, 1200, 600]);
@@ -341,6 +368,14 @@ const AL = (() => {
           bt.add(panelGeo(L, hgt, false), alb, mtx(W(px, py, zt - hgt / 2), ex, ey, ez), card(code, [['Loại', isOuter ? 'Thành dầm biên – cao hơn mặt sàn 50, công trường gia cố thêm' : 'Tấm thành dầm (Beam panel)'],
             ['Dầm', `${b.did} ${fmm(b.b)}×${fmm(b.h)}`], ['Kích thước', `${fmm(L)} × ${fmm(hgt)} mm`], ['Trọng lượng', `≈ ${kg.toFixed(1)} kg`], ['Tháo', 'Sau đổ 12 giờ cùng tấm vách, cột']]));
           bomAdd(bom, code, kg);
+          // la xuyên dầm tại mép giáp mí đứng giữa 2 tấm thành (mỗi 600), ở giữa chiều cao thành
+          if (side === 1 && u + L < b.hi - 0.05) {
+            const [ax, ay] = P(u + L, -b.b / 2 - RIB - 0.03), [bx2, by2] = P(u + L, b.b / 2 + RIB + 0.03), zm = zTop - b.h + Math.min(b.h, drop) / 2 + 0.03;
+            const arr = []; addBox(arr, Math.min(ax, bx2) - (EWb ? 0.0015 : 0), Math.max(ax, bx2) + (EWb ? 0.0015 : 0), zm - 0.016, zm + 0.016, -Math.max(ay, by2) - (EWb ? 0 : 0.0015), -Math.min(ay, by2) + (EWb ? 0 : 0.0015));
+            const fm = meshFrom(arr, lam(0x2d6cdf, {emissive: 0x0b1d40}));
+            fm.userData.info = card('FT – Thanh la xuyên dầm', [['Vị trí', `Mép giáp mí giữa 2 tấm thành dầm ${b.did}, bước 600 dọc dầm`], ['Dài', `${fmm(b.b + 2 * (RIB + 0.03))} mm`], ['Cấu tạo', 'Thép dẹt dày 3 bản 32, chốt RP + nêm WP 2 đầu']]);
+            grp.add(fm); bomAdd(bom, 'FT – thanh la xuyên dầm', 0.75 * (b.b + 0.2));
+          }
           // chốt thành dầm: với đáy dầm (mép dưới) và giữa 2 tấm thành (mép đứng) @300
           const across = EWb ? PY : PX;
           for (let d = 0.15; d < L - 0.05; d += 0.3) { const [qx, qy] = P(u + d, side * (b.b / 2 + RIB / 2)); pinAt(bt, bom, W(qx, qy, zt - hgt), across); }
@@ -381,7 +416,7 @@ const AL = (() => {
 
   // Bảng thống kê tấm (gắn vào thẻ bước)
   function bomRows(bom) {
-    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : k.startsWith('LP') ? 'cây' : k.includes('(m dài)') ? 'm' : k.startsWith('Cùm') || k.startsWith('Cây') ? 'cái' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
+    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : k.startsWith('LP') ? 'cây' : k.includes('(m dài)') ? 'm' : k.startsWith('FT') ? 'thanh' : k.startsWith('Cùm') || k.startsWith('Cây') ? 'cái' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
     const tot = Object.values(bom).reduce((s, v) => s + v.kg, 0);
     rows.push(['Tổng khối lượng', `≈ ${(tot / 1000).toFixed(2)} tấn (vùng hiển thị)`]);
     return rows;

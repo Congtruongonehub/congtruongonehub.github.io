@@ -407,7 +407,7 @@ function setContent(sceneName) {
   // 'sắp tới': mặc định hiện bước kế tiếp chưa xong; chạm thẻ bước để thêm/bớt. 'đã thi công': hiện tất cả.
   const st0 = cur.userData.steps.filter(st => !isNext || stepStatus(st) !== 'done');
   for (const st of (isNext ? st0.slice(0, 1) : st0)) shown.add(st.id);
-  applySteps(); renderSteps();
+  applySteps(); renderSteps(); applyXray();
 }
 function applySteps() { if (!cur) return; for (const ch of cur.children) if (ch.userData.step) ch.visible = shown.has(ch.userData.step); }
 
@@ -806,6 +806,9 @@ $('#scan-back').onclick = () => { if (stream) { stream.getTracks().forEach(t => 
 $('#fov').value = hfov; $('#fov-v').textContent = hfov + '°';
 $('#fov').oninput = e => { hfov = +e.target.value; $('#fov-v').textContent = hfov + '°'; try { localStorage.setItem('hfov', hfov); } catch (er) {} if (video.videoWidth) { K = intrinsics(video.videoWidth, video.videoHeight); setProj(K); } };
 $('#tb-set').onclick = () => { $('#settings').hidden = !$('#settings').hidden; };
+function applyXray() { const on = $('#xray').checked; if (!cur) return;
+  cur.traverse(o => { if (o.material && o.material.vertexColors) { o.material.transparent = on; o.material.opacity = on ? 0.22 : 1; o.material.depthWrite = !on; o.material.needsUpdate = true; } }); }
+$('#xray').onchange = applyXray;
 
 (async function init() {
   $('#ver').textContent = SITE.ver + ' · ' + SITE.src;
