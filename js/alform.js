@@ -8,8 +8,8 @@ const AL = (() => {
   const RIB = 0.065, SKIN = 0.004;
   const KG = {W: 20, WS: 25, WC: 20, D: 20, DS: 20, DE: 20, B: 25, MB: 54, EB: 50, PH: 45, PHS: 50, SC: 39};
   const DS2 = THREE.DoubleSide;
-  const mAlu = () => lam(0xd6dde4, {emissive: 0x56616c, side: DS2});
-  const mBeam = () => lam(0xb9c4cf, {emissive: 0x4a5560, side: DS2});
+  const mAlu = () => lam(0xe2e8ee, {emissive: 0x4a545e, side: DS2, vertexColors: true});
+  const mBeam = () => lam(0xc4ced8, {emissive: 0x3d4752, side: DS2, vertexColors: true});
   const mHead = () => lam(0xf0c419, {emissive: 0x3a2f00, side: DS2});
   const mPin = () => lam(0xc0392b);
   const mSteel = () => lam(0x8f9aa6);
@@ -20,17 +20,23 @@ const AL = (() => {
     const v = [[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
     for (const [a,b,c] of [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]]) arr.push(...v[a],...v[b],...v[c]);
   }
-  function geoOf(arr) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.computeVertexNormals(); return g; }
+  function geoOf(arr, col) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+    const c = col || new Array(arr.length).fill(1); g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); g.computeVertexNormals(); return g; }
+  const tint = (col, n, r, g, b) => { for (let i = 0; i < n; i++) col.push(r, g, b); };
   // Tấm chuẩn: X rộng (tâm 0), Y dài (tâm 0), mặt bê tông ở Z = 0 hướng +Z, sườn về phía −Z
   function panelGeo(w, h, crossAlongY = true) {
     const k = `p${w.toFixed(3)}_${h.toFixed(3)}_${crossAlongY}`; if (cache[k]) return cache[k];
-    const a = [], t = 0.006, hw = w / 2, hh = h / 2;
-    addBox(a, -hw, hw, -hh, hh, -SKIN, 0);                         // mặt nhôm
-    addBox(a, -hw, -hw + t, -hh, hh, -RIB, -SKIN); addBox(a, hw - t, hw, -hh, hh, -RIB, -SKIN);   // sườn biên dọc
-    addBox(a, -hw, hw, -hh, -hh + t, -RIB, -SKIN); addBox(a, -hw, hw, hh - t, hh, -RIB, -SKIN);   // sườn biên ngang
-    if (crossAlongY) for (let y = -hh + 0.3; y < hh - 0.05; y += 0.3) addBox(a, -hw, hw, y - 0.002, y + 0.002, -0.054, -SKIN);
-    else for (let x = -hw + 0.3; x < hw - 0.05; x += 0.3) addBox(a, x - 0.002, x + 0.002, -hh, hh, -0.054, -SKIN);
-    return (cache[k] = geoOf(a));
+    const a = [], t = 0.008, hw = w / 2 - 0.002, hh = h / 2 - 0.002;   // khe giáp mí 4 mm; sườn biên (mép giáp mí, có lỗ chốt) dày 8, sâu 65
+    const col = [];
+    addBox(a, -hw, hw, -hh, hh, -SKIN, 0); tint(col, 36, 1, 1, 1);                         // mặt nhôm
+    addBox(a, -hw, -hw + t, -hh, hh, -RIB, -SKIN); addBox(a, hw - t, hw, -hh, hh, -RIB, -SKIN);   // sườn biên dọc = mép giáp mí
+    addBox(a, -hw, hw, -hh, -hh + t, -RIB, -SKIN); addBox(a, -hw, hw, hh - t, hh, -RIB, -SKIN);   // sườn biên ngang = mép giáp mí
+    tint(col, 144, 0.5, 0.58, 0.68);
+    // sườn tăng cứng bên trong: mỏng 3, thấp 40 – KHÔNG phải mép giáp mí, không có chốt
+    if (crossAlongY) for (let y = -hh + 0.3; y < hh - 0.05; y += 0.3) addBox(a, -hw + t, hw - t, y - 0.0015, y + 0.0015, -0.04, -SKIN);
+    else for (let x = -hw + 0.3; x < hw - 0.05; x += 0.3) addBox(a, x - 0.0015, x + 0.0015, -hh + t, hh - t, -0.04, -SKIN);
+    tint(col, a.length / 3 - col.length / 3, 0.92, 0.94, 0.96);
+    return (cache[k] = geoOf(a, col));
   }
   // Đầu chống PH: khối hình thang mặt trên 300, đáy 200, cao 125, rộng 150 + ống cắm cây chống
   function phGeo() {
@@ -100,7 +106,7 @@ const AL = (() => {
           bomAdd(bom, code, area * kg);
           // chốt mép đứng (giữa 2 tấm cạnh nhau / với góc CA) @300 và mép ngang (giữa 2 tầng tấm) @300
           for (let y = zz + 0.15; y < zz + s.h - 0.05; y += 0.3)
-            for (const xe of [off, off + wd]) pinAt(bt, bom, new THREE.Vector3(...W(f.cx, f.cy, y).toArray()).addScaledVector(ex, xe).addScaledVector(ez, -RIB / 2), ex);
+            for (const xe of (off <= -f.w / 2 + 1e-6 ? [off, off + wd] : [off + wd])) pinAt(bt, bom, new THREE.Vector3(...W(f.cx, f.cy, y).toArray()).addScaledVector(ex, xe).addScaledVector(ez, -RIB / 2), ex);
           if (zz > z0 + 0.01) for (let xx = off + 0.15; xx < off + wd - 0.05; xx += 0.3)
             pinAt(bt, bom, new THREE.Vector3(...W(f.cx, f.cy, zz).toArray()).addScaledVector(ex, xx).addScaledVector(ez, -RIB / 2), ey);
           z += s.h;
@@ -248,7 +254,9 @@ const AL = (() => {
         const zp = soffit - RIB / 2;
         for (let xx = sx.x0 + 0.15; xx < sx.x1 - 0.05; xx += 0.3) pinAt(bt, bom, W(xx, sy.y1, zp), PY);
         if (sy === ys[0]) for (let xx = sx.x0 + 0.15; xx < sx.x1 - 0.05; xx += 0.3) pinAt(bt, bom, W(xx, sy.y0, zp), PY);
-        for (let yy = sy.y0 + 0.15; yy < sy.y1 - 0.05; yy += 0.3) { pinAt(bt, bom, W(sx.x0, yy, zp), PX); pinAt(bt, bom, W(sx.x1, yy, zp), PX); }
+        // cạnh ngắn: chỉ đặt chốt ở mép giáp mí với dầm xương / góc sàn / tấm kế bên (không lặp 2 lần cùng một mép)
+        const ix = xs.indexOf(sx), left = xs[ix - 1], right = xs[ix + 1];
+        for (let yy = sy.y0 + 0.15; yy < sy.y1 - 0.05; yy += 0.3) { if (!left || left.code === 'MB') pinAt(bt, bom, W(sx.x0, yy, zp), PX); pinAt(bt, bom, W(sx.x1, yy, zp), PX); }
       }
       // góc sàn SC dọc 4 cạnh ô sàn (nối tấm sàn với thành dầm)
       for (const [p0, p1, side] of [[[bx0, by0], [bx0, by1], 'x+'], [[bx1, by0], [bx1, by1], 'x-'], [[bx0, by0], [bx1, by0], 'y+'], [[bx0, by1], [bx1, by1], 'y-']]) {
