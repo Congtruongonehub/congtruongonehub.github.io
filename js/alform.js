@@ -125,14 +125,14 @@ const AL = (() => {
     const sx = split(c.b, [600, 450, 400, 350, 300, 250, 200]), sy = split(c.h, [600, 450, 400, 350, 300, 250, 200]);
     let acc = 0; const seamX = sx.slice(0, -1).map(w => (acc += w, c.x - c.b / 2 + acc)); acc = 0;
     const seamY = sy.slice(0, -1).map(w => (acc += w, c.y + c.h / 2 - acc));
-    const ext = RIB + 0.03;
+    const ext = RIB + 0.1;   // đầu la ló ra ngoài sườn biên 100 mm để nhìn thấy bước la từ bên ngoài
     for (const dz of ftSteps) {
       const z = z0 + dz;
       for (const yy of seamY) { addBox(ftArr, c.x - c.b / 2 - ext, c.x + c.b / 2 + ext, z - 0.016, z + 0.016, -yy - 0.0015, -yy + 0.0015); ftL.push(c.b + 2 * ext); }
       for (const xx of seamX) { addBox(ftArr, xx - 0.0015, xx + 0.0015, z + 0.034, z + 0.066, -(c.y + c.h / 2 + ext), -(c.y - c.h / 2 - ext)); ftL.push(c.h + 2 * ext); }
     }
     if (ftArr.length) {
-      const fm = meshFrom(ftArr, lam(0x2d6cdf, {emissive: 0x0b1d40}));
+      const fm = meshFrom(ftArr, lam(0x1f5fe0, {emissive: 0x0d2a6b}));
       fm.userData.info = card('FT – Thanh la (Flat tie) xuyên cột', [
         ['Vị trí', `Mép giáp mí đứng giữa 2 tấm (khe xỏ la): ${seamY.length} đường phương X, ${seamX.length} đường phương Y; 2 phương lệch nhau 50 mm`],
         ['Bước la', laText(ftSteps)],
@@ -140,6 +140,12 @@ const AL = (() => {
         ['Số lượng', `${ftL.length} thanh, tổng ≈ ${ftL.reduce((a, b) => a + b, 0).toFixed(1)} m`],
         ['Sau khi tháo', 'La nằm lại trong bê tông – bẻ đầu la bằng dụng cụ bẻ la, mài phẳng, trám']]);
       grp.add(fm); bomAdd(bom, 'FT – thanh la xuyên cột', 0.75 * 1.2, ftL.length);
+      // nhãn bước la cạnh mép giáp mí ở 2 mặt phía trong nhà
+      const zLow = ftSteps.filter(d => d < LA.lowH), zHigh = ftSteps.filter(d => d >= LA.lowH);
+      for (const [xx, yy] of [[c.x + c.b / 2 + ext + 0.05, seamY[0]], [seamX[0], c.y + c.h / 2 + ext + 0.05]]) {
+        if (zLow.length > 1) grp.add(label(`La @${fmm(LA.low)}`, xx, yy, z0 + (zLow[0] + zLow[zLow.length - 1]) / 2, {fg: '#fff', bg: 'rgba(45,108,223,.92)', h: 0.026, cx: 0}));
+        if (zHigh.length > 1) grp.add(label(`La @${fmm(LA.high)}`, xx, yy, z0 + (zHigh[0] + zHigh[zHigh.length - 1]) / 2, {fg: '#fff', bg: 'rgba(45,108,223,.92)', h: 0.026, cx: 0}));
+      }
     }
     // Góc ngoài CA (63,5 + 63,5) ở 4 góc cột, đủ chiều cao
     const caLen = split(H, [2400, 1200, 600]);
@@ -370,7 +376,7 @@ const AL = (() => {
           bomAdd(bom, code, kg);
           // la xuyên dầm tại mép giáp mí đứng giữa 2 tấm thành (mỗi 600), ở giữa chiều cao thành
           if (side === 1 && u + L < b.hi - 0.05) {
-            const [ax, ay] = P(u + L, -b.b / 2 - RIB - 0.03), [bx2, by2] = P(u + L, b.b / 2 + RIB + 0.03), zm = zTop - b.h + Math.min(b.h, drop) / 2 + 0.03;
+            const [ax, ay] = P(u + L, -b.b / 2 - RIB - 0.1), [bx2, by2] = P(u + L, b.b / 2 + RIB + 0.1), zm = zTop - b.h + Math.min(b.h, drop) / 2 + 0.03;
             const arr = []; addBox(arr, Math.min(ax, bx2) - (EWb ? 0.0015 : 0), Math.max(ax, bx2) + (EWb ? 0.0015 : 0), zm - 0.016, zm + 0.016, -Math.max(ay, by2) - (EWb ? 0 : 0.0015), -Math.min(ay, by2) + (EWb ? 0 : 0.0015));
             const fm = meshFrom(arr, lam(0x2d6cdf, {emissive: 0x0b1d40}));
             fm.userData.info = card('FT – Thanh la xuyên dầm', [['Vị trí', `Mép giáp mí giữa 2 tấm thành dầm ${b.did}, bước 600 dọc dầm`], ['Dài', `${fmm(b.b + 2 * (RIB + 0.03))} mm`], ['Cấu tạo', 'Thép dẹt dày 3 bản 32, chốt RP + nêm WP 2 đầu']]);
