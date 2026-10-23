@@ -434,12 +434,31 @@ $('#steps').addEventListener('click', e => {
   const b = e.target.closest('.step'); if (!b || b.disabled) return;
   const id = b.dataset.id; shown.has(id) ? shown.delete(id) : shown.add(id); applySteps(); renderSteps();
   const st = cur.userData.steps.find(s => s.id === id), bom = (cur.userData.bom || {})[id] || [];
-  if (shown.has(id)) showInfo({title: st.name, rows: st.method.map((m, i) => ['Biện pháp ' + (i + 1), m]).concat(bom.length ? [['—', '<b>Thống kê cấu kiện (mô phỏng)</b>']].concat(bom) : [])});
+  if (shown.has(id)) showInfo(stepInfo(st, bom));
 });
 
-function showInfo(inf) {
+// Thẻ đầy đủ của 1 bước: thời gian, trạng thái, ai làm, điều kiện bắt đầu, biện pháp, nhân lực, kiểm tra, an toàn, hồ sơ, bản vẽ, khối lượng
+function stepInfo(st, bom) {
+  const S = {done: 'Đã xong', now: 'Đang làm', todo: 'Sắp tới'}[stepStatus(st)];
+  const nhs = (NT.records || []).concat(apiRecs || []).filter(r => r.step === st.id).length;
+  const H = t => ['—', `<b>${t}</b>`];
+  const rows = [['Thời gian', `${fmtDate(st.from)}${st.to !== st.from ? ' – ' + fmtDate(st.to) : ''} · ${S} (dự kiến theo Tiến độ Rev02)`]];
+  if (st.ai) rows.push(['Đơn vị thực hiện', st.ai]);
+  if (st.dk) rows.push(['Điều kiện bắt đầu', st.dk]);
+  rows.push(H('Biện pháp thi công')); st.method.forEach((m, i) => rows.push([String(i + 1), m]));
+  if (st.nl) rows.push(['Nhân lực, thiết bị', st.nl + ' <i>(ước tính)</i>']);
+  if (st.kt) rows.push(['Kiểm tra, nghiệm thu', st.kt]);
+  if (st.at) rows.push(['An toàn', st.at]);
+  if (st.hs) rows.push(['Hồ sơ cần có', st.hs + `<br><span style="color:var(--acc)">Đã tải lên: ${nhs} hồ sơ</span>`]);
+  if (st.bv) rows.push(['Bản vẽ, tài liệu', st.bv]);
+  if (bom && bom.length) rows.push(H('Thống kê cấu kiện (mô phỏng)'), ...bom);
+  return {title: st.name, rows};
+}
+function placeInfo() { const sb = $('#steps'), el = $('#info'); if (!el) return; const h = sb && !sb.hidden ? sb.offsetHeight : 0; el.style.bottom = `calc(env(safe-area-inset-bottom) + ${Math.max(h, 12) + 10}px)`; el.style.maxHeight = `calc(100% - ${h + 150}px)`; }
+addEventListener('resize', () => placeInfo());
+function showInfo(inf) { placeInfo();
   const el = $('#info'); if (!inf) { el.hidden = true; return; }
-  el.innerHTML = `<button class="x" aria-label="Đóng">×</button><h3>${inf.title}</h3><dl>${inf.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  el.innerHTML = `<button class="x" aria-label="Đóng">×</button><h3>${inf.title}</h3><dl>${inf.rows.map(([k, v]) => k === '—' ? `<div class="sec">${v}</div>` : `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
   el.hidden = false;
 }
 $('#info').addEventListener('click', e => { if (e.target.classList.contains('x')) showInfo(null); });
@@ -503,6 +522,15 @@ function onOrient(e) {
   euler.set(e.beta * deg, e.alpha * deg, -e.gamma * deg, 'YXZ');
   devQuat.setFromEuler(euler); devQuat.multiply(q1); devQuat.multiply(q0.setFromAxisAngle(z, -orient));
 }
+// Trình duyệt nhúng trong Zalo / Facebook / Messenger… không cho dùng camera + AR → hướng dẫn mở bằng Chrome / Safari
+const UA = navigator.userAgent, IN_APP = /Zalo|FBAN|FBAV|FB_IAB|Instagram|Line\/|Messenger|; wv\)/i.test(UA), IS_IOS = /iPad|iPhone|iPod/.test(UA);
+function inAppNote() {
+  const el = $('#inapp'); if (!el) return; el.hidden = !IN_APP; if (!IN_APP) return;
+  const tok = (location.hash || '').slice(1), base = location.href.replace(/#.*/, '').replace(/^https?:\/\//, ''), url = tok ? base + (base.includes('?') ? '&' : '?') + 't=' + tok : base;
+  el.innerHTML = IS_IOS
+    ? '<b>Đang mở trong ứng dụng khác (Zalo…) – camera và AR không chạy.</b><br>Bấm <b>⋯</b> góc trên → <b>Mở bằng Safari</b>. Hoặc quét tem bằng ứng dụng <b>Camera</b> của iPhone.'
+    : `<b>Đang mở trong ứng dụng khác (Zalo…) – camera và AR không chạy.</b><br><a class="btn" href="intent://${url}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(location.href)};end${location.hash ? '' : ''}">Mở bằng Chrome</a> hoặc bấm <b>⋮</b> → <b>Mở bằng trình duyệt</b>. Lần sau quét tem bằng ứng dụng Camera hoặc Chrome.`;
+}
 async function startAR(mode) {
   curMode = mode; view = 'ar'; show('v-run'); document.body.classList.add('mar'); document.body.classList.remove('m3d');
   setTopbar(); setContent(curEl[mode].scene); markTag(false);
@@ -512,7 +540,7 @@ async function startAR(mode) {
     else addEventListener('deviceorientation', onOrient);
     stream = await navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: +(qs.get('cw') || 1280)}, height: {ideal: +(qs.get('ch') || 720)}}});
   } catch (err) {
-    setStatus('Không mở được camera – kiểm tra quyền camera của trình duyệt. Đang chuyển sang xem 3D.', 'bad');
+    setStatus(IN_APP ? 'Trình duyệt trong Zalo/Facebook không cho dùng camera – mở trang bằng Chrome hoặc Safari. Đang chuyển sang xem 3D.' : 'Không mở được camera – kiểm tra quyền camera của trình duyệt. Đang chuyển sang xem 3D.', 'bad');
     setTimeout(() => start3D(mode), 2200); return;
   }
   video.srcObject = stream; await video.play().catch(() => {});
@@ -818,9 +846,9 @@ $('#tb-set').onclick = () => { $('#settings').hidden = !$('#settings').hidden; }
 (async function init() {
   $('#ver').textContent = SITE.ver + ' · ' + SITE.src;
   try { const r = await fetch('data/nghiem_thu.json', {cache: 'no-cache'}); if (r.ok) NT = await r.json(); } catch (e) {}
-  const tok = (location.hash || '').slice(1);
+  const tok = (location.hash || '').slice(1) || qs.get('t') || '';
   if (tok && openTag(tok)) {} else curEl = null;
-  goHome();
+  goHome(); inAppNote();
   if (qs.get('xr') && curEl) { const m = $('#xr-msg'); m.textContent = 'Đã mở trong App Clip – bấm nút "AR bám không gian" để bắt đầu.'; m.hidden = false; }
   if (qs.get('auto')) { const m = qs.get('auto'); m.startsWith('3d') ? start3D(m.slice(2)) : startAR(m); }
   loop();

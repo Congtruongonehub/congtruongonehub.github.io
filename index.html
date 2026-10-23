@@ -86,6 +86,10 @@ body.m3d .status{display:none}
 .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .doc{display:inline-block;margin-top:8px;color:var(--acc)}
 .empty{color:var(--mut);text-align:center;padding:30px 10px}
+.inapp{border:1px solid var(--bad);background:#2a1614;border-radius:var(--r);padding:12px 14px;font-size:14px}
+.inapp .btn{display:inline-block;margin:8px 0 4px;padding:10px 16px;border-radius:999px;background:var(--acc);color:#151515;font-weight:700;text-decoration:none}
+#info dd{white-space:normal}
+#info .sec{grid-column:1/-1;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);color:var(--acc)}
 /* ---- AR bám không gian (WebXR) ---- */
 .big.xr{border-color:#4a6b8a;background:#18283a}
 body.mxr #v-run{background:transparent}
@@ -102,6 +106,7 @@ body.mxr #gl,body.mxr #cam{visibility:hidden}
 <section id="v-home" class="view">
   <div class="wrap">
     <div class="brand"><i></i>ONEHUB Saigon BP2 · Thực tế ảo công trường</div>
+    <div id="inapp" class="inapp" hidden></div>
     <div id="home-tag" class="wrap" style="gap:12px">
       <div class="el"><h1 id="el-title"></h1><p id="el-sub"></p><div class="face" id="el-face"></div></div>
       <button id="b-next" class="big p"><b></b><small></small></button>
