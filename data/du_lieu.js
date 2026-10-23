@@ -63,7 +63,7 @@ const STEPS = {
     {id: 'L4-2', name: 'Cốp pha nhôm cột, vách', from: '2027-01-19', to: '2027-01-20',
       method: ['Lắp góc trong vách IC trước (vách lõi), rồi tấm vách. Cột C1 1050×1050: mỗi mặt W600 + W450 cao 2450 (có chân rocker 50), bên trên tấm mở rộng WS350 + WS300 + WS300 tới đáy dầm +17.525.',
                '4 góc ngoài nối bằng góc CA(63.5+63.5). Liên kết chốt ngắn RP + nêm WP @300 dọc mép tấm.',
-               'Gông cột bằng xà gồ thép hộp 50×50 nằm ngang + cùm xà gồ ở 4 cao độ. Cây chống xiên (push-pull) ở các mặt phía trong nhà, đầu trên ≈ 2,3 m, chân cách mặt cột ≈ 1,7 m; cây chống chân (turnbuckle) ở 0,45 m. Căn độ thẳng đứng ≤ H/1000 bằng ren.',
+               'Gông cột bằng xà gồ thép hộp 50×50 nằm ngang + cùm xà gồ ở 4 cao độ. Cây chống xiên kẹp vào xà gồ tầng gông trên (+2,1 m ≈ 2/3 chiều cao), chân đế xoay tựa sàn cách mặt cột ≈ 1,3 m; cây chống chân (turnbuckle) bắt bản mã vào sườn chân tấm, móc neo sàn cách 0,7 m (theo sổ tay). Căn độ thẳng đứng ≤ H/1000 bằng ren.',
                'Bu lông neo chân cây chống trên sàn DƯL: tránh vùng cáp (đánh dấu tuyến cáp trước khi khoan) hoặc đặt neo chờ trước khi đổ sàn.',
                'Vách lõi, vách biên: kicker xẻ rãnh d14 @200 (checklist Rev06) làm cữ cho tấm vách tầng trên.']},
     {id: 'L4-3', name: 'Cốp pha nhôm dầm, sàn + cây chống V4', from: '2027-01-21', to: '2027-01-25',
