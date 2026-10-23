@@ -189,20 +189,38 @@ function buildProps(zFloor, zTop) {
   for (const m of [mOut, mIn, mHd]) m.userData.info = info;
   g.add(mOut, mIn, mPl, mHd); g.userData.props = P; return g;
 }
+// Tấm cốp pha nhôm sàn 1200 × 600 × 65 (dựng từng tấm, có khe ghép), cốp pha đáy + thành dầm màu nhôm
 function buildDeck(zTop) {
-  const g = new THREE.Group(), soffit = zTop - 0.22, mat = ghost(COL.deck, 0.5), seg = [];
-  const x0 = EDGE, y0 = EDGE;
-  const deck = box(x0, RX1, y0, RY1, soffit - 0.065, soffit, mat); deck.userData.info = () => ({title: 'Cốp pha nhôm sàn', rows: [
-    ['Tấm', '600 × 1200, dày 65'], ['Mặt cốp pha', fmtLv(soffit) + ' (đáy sàn, sàn dày 220)'], ['Ghi chú', 'Chia tấm theo shop drawing NCC']]});
-  g.add(deck);
-  for (let x = x0; x <= RX1; x += 0.6) seg.push(W(x, y0, soffit - 0.066), W(x, RY1, soffit - 0.066));
-  for (let y = y0; y <= RY1; y += 1.2) seg.push(W(x0, y, soffit - 0.066), W(RX1, y, soffit - 0.066));
-  const lg = new THREE.BufferGeometry().setFromPoints(seg); g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({color: 0x56636f, clippingPlanes: CLIP})));
+  const g = new THREE.Group(), soffit = zTop - 0.22, T = 0.065, gap = 0.004;
+  const P = [];
+  for (let x = EDGE; x < RX1 - 0.05; x += 1.2) for (let y = EDGE; y < RY1 - 0.05; y += 0.6) {
+    const x1 = Math.min(x + 1.2, RX1), y1 = Math.min(y + 0.6, RY1), cx = (x + x1) / 2, cy = (y + y1) / 2;
+    if (inBeam(cx, cy, -0.05) || inCol(cx, cy, 0)) continue;
+    P.push([x, x1, y, y1]);
+  }
+  const geo = new THREE.BoxGeometry(1, T, 1), m = new THREE.InstancedMesh(geo, lam(0xc9d2db, {emissive: 0x5d6873}), P.length), o = new THREE.Object3D();
+  P.forEach(([x0, x1, y0, y1], i) => {
+    o.position.copy(W((x0 + x1) / 2, (y0 + y1) / 2, soffit - T / 2)); o.scale.set(x1 - x0 - gap, 1, y1 - y0 - gap); o.updateMatrix(); m.setMatrixAt(i, o.matrix);
+  });
+  m.userData.info = hit => {
+    const p = P[hit && hit.instanceId != null ? hit.instanceId : 0];
+    return {title: 'Tấm cốp pha nhôm sàn', rows: [
+      ['Kích thước tấm', `${mm(p[1] - p[0])} × ${mm(p[3] - p[2])} × 65 (tấm chuẩn 1200 × 600)`],
+      ['Mặt cốp pha', fmtLv(soffit) + ' = đáy sàn dày 220'],
+      ['Số tấm (vùng hiển thị)', `${P.length} tấm`],
+      ['Đỡ bởi', 'Đầu chống (drop head) trên cây chống V4 – tháo tấm sớm, giữ đầu chống'],
+      ['Ghi chú', 'Chia tấm sơ bộ – theo bản vẽ ST-form của Kumkang khi có'],
+    ]};
+  };
+  // đường khe ghép tấm nhìn từ dưới lên
+  const seg = []; for (const [x0, x1, y0, y1] of P) { const z = soffit - T - 0.002;
+    seg.push(W(x0, y0, z), W(x1, y0, z), W(x1, y0, z), W(x1, y1, z), W(x1, y1, z), W(x0, y1, z), W(x0, y1, z), W(x0, y0, z)); }
+  g.add(m, new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg), new THREE.LineBasicMaterial({color: 0x39424c, clippingPlanes: CLIP})));
   for (const b of beamsReg()) {           // cốp pha dầm: đáy + 2 thành
-    const hb = b.h, drop = hb - 0.22, zb = zTop - hb, fm = ghost(COL.form, 0.55);
-    const P = (u0, u1, w0, w1, z0, z1) => b.o === 'EW' ? box(u0, u1, b.c + w0, b.c + w1, z0, z1, fm) : box(b.c + w0, b.c + w1, u0, u1, z0, z1, fm);
-    const parts = [P(b.lo, b.hi, -b.b/2, b.b/2, zb - 0.065, zb), P(b.lo, b.hi, -b.b/2 - 0.065, -b.b/2, zb - 0.065, zb + drop), P(b.lo, b.hi, b.b/2, b.b/2 + 0.065, zb - 0.065, zb + drop)];
-    for (const m of parts) { m.userData.info = () => ({title: `Cốp pha dầm ${b.did}`, rows: [['Đáy dầm', fmtLv(zb) + ` (h ${mm(hb)})`], ['Bề rộng', mm(b.b) + ' mm'], ['Chống đáy', `V4, ${Math.max(1, Math.ceil(b.b / 0.6))} hàng, bước 0,9 m dọc dầm (sơ bộ)`]]}); g.add(m); }
+    const hb = b.h, drop = hb - 0.22, zb = zTop - hb, fm = lam(0xaebccb, {emissive: 0x4a5560});
+    const Pb = (u0, u1, w0, w1, z0, z1) => b.o === 'EW' ? box(u0, u1, b.c + w0, b.c + w1, z0, z1, fm) : box(b.c + w0, b.c + w1, u0, u1, z0, z1, fm);
+    const parts = [Pb(b.lo, b.hi, -b.b/2, b.b/2, zb - T, zb), Pb(b.lo, b.hi, -b.b/2 - T, -b.b/2, zb - T, zb + drop), Pb(b.lo, b.hi, b.b/2, b.b/2 + T, zb - T, zb + drop)];
+    for (const q of parts) { q.userData.info = () => ({title: `Cốp pha nhôm dầm ${b.did}`, rows: [['Đáy dầm', fmtLv(zb) + ` (h ${mm(hb)})`], ['Bề rộng', mm(b.b) + ' mm'], ['Thành dầm', `cao ${mm(drop)} dưới đáy sàn, dày 65`], ['Chống đáy', `V4, ${Math.max(1, Math.ceil(b.b / 0.6))} hàng, bước 0,9 m dọc dầm (sơ bộ)`]]}); g.add(q); }
   }
   return g;
 }
