@@ -119,16 +119,27 @@ const AL = (() => {
         bomAdd(bom, `CA(63.5+63.5)x${fmm(L)}`, 1.931 * L); z += L;
       }
     }
-    // Gông cột: ống thép Ø48,6 + cùm xà gồ, 4 tầng
-    const o = 0.065 + 0.04, pipes = [];
-    for (const dz of [0.3, 1.2, 2.1, 3.0].filter(d => d < H - 0.1)) {
-      const z = z0 + dz, x0 = c.x - c.b/2 - o, x1 = c.x + c.b/2 + o, y0 = c.y - c.h/2 - o, y1 = c.y + c.h/2 + o;
-      for (const [a, b] of [[[x0 - 0.15, y0], [x1 + 0.15, y0]], [[x0 - 0.15, y1], [x1 + 0.15, y1]], [[x0, y0 - 0.15], [x0, y1 + 0.15]], [[x1, y0 - 0.15], [x1, y1 + 0.15]]])
-        prismSeg(pipes, W(a[0], a[1], z), W(b[0], b[1], z), 0.0243);
-      bomAdd(bom, 'Ống thép Ø48,6 gông cột (tầng)', 0);
+    // Gông cột: xà gồ thép hộp 50×50 nằm ngang ôm 4 mặt + cùm xà gồ (waler bracket) bắt vào sườn tấm, 4 cao độ
+    const o = RIB + 0.025 + 0.01, bars = [], brk = [], levels = [0.3, 1.2, 2.1, 3.0].filter(d => d < H - 0.1);
+    let barLen = 0;
+    for (const dz of levels) {
+      const z = z0 + dz, x0 = c.x - c.b/2 - o, x1 = c.x + c.b/2 + o, y0 = c.y - c.h/2 - o, y1 = c.y + c.h/2 + o, e = 0.15, hs = 0.025;
+      addBox(bars, x0 - e, x1 + e, z - hs, z + hs, -y0 - hs, -y0 + hs); addBox(bars, x0 - e, x1 + e, z - hs, z + hs, -y1 - hs, -y1 + hs);   // 2 thanh theo phương x
+      addBox(bars, x0 - hs, x0 + hs, z + hs, z + 3 * hs, -(y1 + e), -(y0 - e)); addBox(bars, x1 - hs, x1 + hs, z + hs, z + 3 * hs, -(y1 + e), -(y0 - e));   // 2 thanh phương y đặt chồng lên
+      barLen += 2 * (x1 - x0 + 2 * e) + 2 * (y1 - y0 + 2 * e);
+      for (const f of faces) for (const t of [-0.3, 0.3]) {   // cùm xà gồ: 2 cái mỗi mặt mỗi cao độ
+        const along = f.n.x !== 0 ? [0, 1] : [1, 0], out = f.n.clone().negate(), px = f.cx + out.x * (RIB + 0.012) + along[0] * t, py = f.cy - out.z * (RIB + 0.012) + along[1] * t;
+        addBox(brk, px - 0.02, px + 0.02, z - 0.045, z + 0.045, -py - 0.02, -py + 0.02);
+      }
     }
-    const pm = meshFrom(pipes, st); pm.userData.info = card('Gông cột', [['Cấu tạo', 'Ống thép Ø48,6 + cùm xà gồ (Waler bracket) ôm 4 mặt'], ['Cao độ', '+0,3 / +1,2 / +2,1 / +3,0 m từ chân cột']]);
-    grp.add(pm);
+    bomAdd(bom, 'Xà gồ thép hộp 50×50 (m dài)', 0, 0); bom['Xà gồ thép hộp 50×50 (m dài)'].n = Math.round(barLen * 10) / 10; bom['Xà gồ thép hộp 50×50 (m dài)'].kg = barLen * 2.65;
+    bomAdd(bom, 'Cùm xà gồ (waler bracket)', 1.2, levels.length * faces.length * 2);
+    const ginfo = () => ({title: 'Gông cột – xà gồ thép hộp 50×50', rows: [
+      ['Cấu tạo', 'Xà gồ thép hộp 50×50 nằm ngang ôm 4 mặt cột, 2 phương đặt chồng lên nhau tại góc; cùm xà gồ (waler bracket) kẹp vào sườn tấm vách'],
+      ['Cao độ', levels.map(d => '+' + d.toFixed(1).replace('.', ',')).join(' / ') + ' m từ chân cột'],
+      ['Khối lượng', `≈ ${barLen.toFixed(1)} m dài, ${(barLen * 2.65).toFixed(0)} kg (hộp 50×50×1,8 ≈ 2,65 kg/m)`],
+      ['Kiểm tra', 'Siết cùm đủ trước khi đổ; xà gồ thẳng, không cong vênh']]});
+    const bm1 = meshFrom(bars, st), bm2 = meshFrom(brk, lam(0xc0392b)); bm1.userData.info = bm2.userData.info = ginfo; grp.add(bm1, bm2);
     // Cây chống xiên (push-pull prop) + cây chống chân (turnbuckle) – sổ tay mục Phụ kiện; đặt ở các mặt phía trong nhà
     // (mặt ngoài nhà không có sàn để tựa). Chân đế bắt bu lông neo vào sàn DƯL: phải tránh vùng cáp.
     const tubeO = [], tubeI = [], plates = [], thread = [], gM = lam(0x2e9d5b, {emissive: 0x0c2a17}), gI = lam(0xdfe6ee), gP = lam(0x6d7884), gT = lam(0xf0c419);
@@ -362,7 +373,7 @@ const AL = (() => {
 
   // Bảng thống kê tấm (gắn vào thẻ bước)
   function bomRows(bom) {
-    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : k.startsWith('LP') ? 'cây' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
+    const rows = Object.entries(bom).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, `${v.n} ${k.startsWith('SPP') ? 'cây' : k.startsWith('RP') ? 'bộ' : k.startsWith('LP') ? 'cây' : k.includes('(m dài)') ? 'm' : k.startsWith('Cùm') || k.startsWith('Cây') ? 'cái' : 'tấm'}${v.kg ? ` · ${v.kg.toFixed(0)} kg` : ''}`]);
     const tot = Object.values(bom).reduce((s, v) => s + v.kg, 0);
     rows.push(['Tổng khối lượng', `≈ ${(tot / 1000).toFixed(2)} tấn (vùng hiển thị)`]);
     return rows;
