@@ -212,39 +212,48 @@ const AL = (() => {
     const tubeO = [], tubeI = [], tubeT = [], plates = [], thread = [], gM = std({color: 0xd8342c, metalness: 0.3, roughness: 0.5}), gI = std({color: 0xd8342c, metalness: 0.3, roughness: 0.45}), gP = std({color: 0x8e979f, metalness: 0.6, roughness: 0.4}), gT = std({color: 0xc9b46a, metalness: 0.7, roughness: 0.35}), gTb = std({color: 0xc9b46a, metalness: 0.7, roughness: 0.35});
     const braceFaces = faces.filter(f => (f.n.x !== 0 ? (f.n.x < 0 ? c.x + c.b / 2 : c.x - c.b / 2) : (f.n.z > 0 ? c.y + c.h / 2 : c.y - c.h / 2)) > edge + 0.05 && !(f.n.x > 0 && c.x - c.b / 2 <= edge + 0.05) && !(f.n.z < 0 && c.y - c.h / 2 <= edge + 0.05));
     const braces = [];
-    // Theo ảnh sổ tay (Phụ kiện – Cây chống xiên, Cây chống chân): cây chống xiên tựa vào XÀ GỒ ngang ở tầng gông trên
-    // (≈ 2/3 chiều cao), chân xoay có ren tựa sàn; cây chống chân (turnbuckle) bắt bản mã vào sườn chân tấm vách, đầu móc neo sàn, gần như nằm ngang.
-    const lvlTop = levels.reduce((p, d) => Math.abs(d - 0.62 * H) < Math.abs(p - 0.62 * H) ? d : p, levels[0]);
-    const woff = RIB + 0.025 + 0.01;                                     // tim xà gồ cách mặt bê tông
+    // Cây chống liên kết vào SÓNG ĐỨNG của tấm nhôm (sườn biên đứng tại mép giáp mí giữa 2 tấm) bằng bản mã bắt bu lông/chốt qua lỗ sườn;
+    // cây chống xiên đầu trên ở ≈ 2/3 chiều cao, chân đế xoay có ren tựa sàn; cây chống chân bắt cùng sóng đứng ở chân tấm, móc neo sàn.
+    // cao độ liên kết ≈ 0,7H, tránh trùng tầng xà gồ (lệch ≥ 0,2 m) để bản mã không vướng gông
+    let hTop = Math.min(H - 0.3, 0.7 * H);
+    for (let k = 0; k < 10 && levels.some(d => Math.abs(d - hTop) < 0.2); k++) hTop += 0.05;
+    const lvlTop = hTop;
     for (const f of braceFaces) {
       const out = f.n.clone().negate(), dx = out.x, dy = -out.z;          // hướng ra ngoài mặt cột (plan)
-      const along = f.n.x !== 0 ? [0, 1] : [1, 0], wz = f.n.x !== 0 ? 0.05 : 0;   // xà gồ phương y đặt chồng trên phương x 50
-      for (const o of [-0.3, 0.3]) {
-        // cây chống xiên: đầu trên kẹp vào mặt ngoài xà gồ tầng trên, chân cách mặt cột ≈ 0,6 × cao điểm tựa
-        const hx = f.cx + dx * (woff + 0.025 + 0.03) + along[0] * o, hy = f.cy + dy * (woff + 0.025 + 0.03) + along[1] * o, hz = lvlTop + wz;
-        const reach = Math.max(1.2, 0.6 * hz), bx = hx + dx * reach, by = hy + dy * reach;
-        const A = W(bx, by, z0 + 0.08), B = W(hx, hy, z0 + hz), mid = A.clone().lerp(B, 0.55);
+      const along = f.n.x !== 0 ? [0, 1] : [1, 0];
+      // vị trí sóng đứng (mép giáp mí) trên mặt này, theo đúng thứ tự tấm đã lắp
+      let ws = split(f.w, [600, 450, 400, 350, 300, 250, 200]); if (f.n.x > 0 || f.n.z < 0) ws = ws.slice().reverse();
+      const ex = new THREE.Vector3().crossVectors(PZ, f.n); let off = -f.w / 2; const seams = [];
+      for (let i = 0; i < ws.length - 1; i++) { off += ws[i]; seams.push(off); }
+      for (const sOff of seams) {
+        const base = new THREE.Vector3(f.cx, 0, -f.cy).addScaledVector(ex, sOff), sx0 = base.x, sy0 = -base.z;   // điểm sóng đứng trên mặt bê tông (plan)
+        // bản mã đứng kẹp 2 sườn biên tại mép giáp mí, nhô ra 120 để gắn đầu cây chống
+        const lugOut = RIB + 0.12, hx = sx0 + dx * lugOut, hy = sy0 + dy * lugOut, t = 0.006;
+        for (const [zc, hh] of [[hTop, 0.16], [0.15, 0.14]]) addBox(plates,
+          Math.min(sx0 + dx * RIB, hx) - (along[0] ? t : 0), Math.max(sx0 + dx * RIB, hx) + (along[0] ? t : 0), z0 + zc - hh / 2, z0 + zc + hh / 2,
+          -Math.max(sy0 + dy * RIB, hy) - (along[1] ? t : 0), -Math.min(sy0 + dy * RIB, hy) + (along[1] ? t : 0));
+        // cây chống xiên
+        const reach = Math.max(1.3, 0.6 * hTop), bx = hx + dx * reach, by = hy + dy * reach;
+        const A = W(bx, by, z0 + 0.08), B = W(hx, hy, z0 + hTop), mid = A.clone().lerp(B, 0.55);
         prismSeg(tubeO, A.clone().lerp(B, 0.06), mid, 0.0302); prismSeg(tubeI, mid, B, 0.0243);
-        prismSeg(thread, A, A.clone().lerp(B, 0.07), 0.016);                                  // ren chỉnh chân
-        addBox(plates, bx - 0.06, bx + 0.06, z0 + 0.003, z0 + 0.015, -by - 0.06, -by + 0.06);  // đế xoay
-        addBox(plates, hx - 0.03 - Math.abs(along[0]) * 0.03, hx + 0.03 + Math.abs(along[0]) * 0.03, z0 + hz - 0.045, z0 + hz + 0.045, -hy - 0.03 - Math.abs(along[1]) * 0.03, -hy + 0.03 + Math.abs(along[1]) * 0.03);   // tai kẹp xà gồ
-        braces.push({kind: 'push', L: A.distanceTo(B), hz, reach, nm: f.nm});
+        prismSeg(thread, A, A.clone().lerp(B, 0.07), 0.016);
+        addBox(plates, bx - 0.06, bx + 0.06, z0 + 0.003, z0 + 0.015, -by - 0.06, -by + 0.06);
+        braces.push({kind: 'push', L: A.distanceTo(B), hz: hTop, reach, nm: f.nm});
         bomAdd(bom, 'Cây chống xiên (push-pull)', 16);
+        // cây chống chân: cùng sóng đứng, ở chân tấm
+        const tx = sx0 + dx * lugOut, ty = sy0 + dy * lugOut, fx2 = tx + dx * 0.7, fy2 = ty + dy * 0.7;
+        const A2 = W(fx2, fy2, z0 + 0.06), B2 = W(tx, ty, z0 + 0.15), m1 = A2.clone().lerp(B2, 0.3), m2 = A2.clone().lerp(B2, 0.75);
+        prismSeg(thread, A2, m1, 0.011); prismSeg(tubeT, m1, m2, 0.017); prismSeg(thread, m2, B2, 0.011);
+        addBox(plates, fx2 - 0.012, fx2 + 0.012, z0, z0 + 0.09, -fy2 - 0.012, -fy2 + 0.012);
+        braces.push({kind: 'turn', L: A2.distanceTo(B2), hz: 0.15, reach: 0.7, nm: f.nm});
+        bomAdd(bom, 'Cây chống chân (turnbuckle)', 6);
       }
-      // cây chống chân: bản mã bắt sườn chân tấm (cao 0,15), đầu móc neo sàn cách 0,7 m
-      const hx = f.cx + dx * (RIB + 0.01), hy = f.cy + dy * (RIB + 0.01), bx = hx + dx * 0.7, by = hy + dy * 0.7;
-      const A = W(bx, by, z0 + 0.06), B = W(hx, hy, z0 + 0.15), m1 = A.clone().lerp(B, 0.3), m2 = A.clone().lerp(B, 0.75);
-      prismSeg(thread, A, m1, 0.011); prismSeg(tubeT, m1, m2, 0.017); prismSeg(thread, m2, B, 0.011);
-      addBox(plates, bx - 0.012, bx + 0.012, z0, z0 + 0.09, -by - 0.012, -by + 0.012);           // móc neo sàn
-      addBox(plates, hx - 0.004 - Math.abs(along[1]) * 0.06, hx + 0.004 + Math.abs(along[1]) * 0.06, z0 + 0.09, z0 + 0.21, -hy - 0.004 - Math.abs(along[0]) * 0.06, -hy + 0.004 + Math.abs(along[0]) * 0.06);   // bản mã bắt sườn tấm
-      braces.push({kind: 'turn', L: A.distanceTo(B), hz: 0.15, reach: 0.7, nm: f.nm});
-      bomAdd(bom, 'Cây chống chân (turnbuckle)', 6);
     }
     if (braces.length) {
       const nP = braces.filter(b => b.kind === 'push'), nT = braces.filter(b => b.kind === 'turn');
       const binfo = () => ({title: 'Cây chống xiên + cây chống chân cột', rows: [
-        ['Cây chống xiên', `${nP.length} cây – đầu trên kẹp vào xà gồ hộp 50×50 ở tầng gông +${lvlTop.toFixed(1).replace('.', ',')} m (≈ 2/3 chiều cao cột), chân đế xoay có ren tựa sàn cách mặt cột ≈ ${nP[0] ? nP[0].reach.toFixed(1).replace('.', ',') : '–'} m; dài ≈ ${nP[0] ? nP[0].L.toFixed(2) : '–'} m`],
-        ['Cây chống chân', `${nT.length} cây (turnbuckle) – bản mã bắt sườn chân tấm vách cao 0,15 m, đầu móc neo sàn cách 0,7 m, ren 2 đầu chỉnh chân cốp pha`],
+        ['Cây chống xiên', `${nP.length} cây – đầu trên liên kết vào SÓNG ĐỨNG tấm nhôm (sườn biên tại mép giáp mí) bằng bản mã bắt chốt/bu lông qua lỗ sườn, cao +${lvlTop.toFixed(2).replace('.', ',')} m (≈ 2/3 chiều cao cột); chân đế xoay có ren tựa sàn cách mặt cột ≈ ${nP[0] ? nP[0].reach.toFixed(1).replace('.', ',') : '–'} m; dài ≈ ${nP[0] ? nP[0].L.toFixed(2) : '–'} m`],
+        ['Cây chống chân', `${nT.length} cây (turnbuckle) – bản mã bắt vào cùng sóng đứng ở chân tấm (cao 0,15 m), đầu móc neo sàn cách 0,7 m, ren 2 đầu chỉnh chân cốp pha`],
         ['Mặt bố trí', [...new Set(braces.map(b => b.nm))].join(', ')],
         ['Công dụng', 'Căn chỉnh và giữ độ thẳng đứng cốp pha cột ≤ H/1000 trong lúc đổ'],
         ['LƯU Ý SÀN DƯL', 'Neo chân cây chống vào sàn phải tránh tuyến cáp (đánh dấu cáp trước khi khoan) hoặc dùng neo chờ đặt sẵn'],
