@@ -16,9 +16,20 @@ const TAGS = {
   // Tem dán trên mặt sàn T4 cạnh chân cột C1 (sàn đã đổ = hoàn thành), mũi tên chỉ về cột
   'S4C1E': {el: 'S4-C1a', face: 'Trên mặt sàn, phía trục 2.B', o: [0.945, 0.07, 14.125], u: [0, 1, 0], v: [1, 0, 0]},
   'S4C1N': {el: 'S4-C1a', face: 'Trên mặt sàn, phía trục 2.2', o: [0.07, 0.945, 14.125], u: [-1, 0, 0], v: [0, 1, 0]},
+  // Tem gắn trên LỒNG THÉP cột C1 tầng 1 (trệt → T2), cột đang buộc thép (24/10/2026).
+  // Tem dán trên tấm cứng, buộc vào đai mặt ngoài lồng thép: mặt tem lùi vào trong mặt cột ≈ 35 mm (lớp bảo vệ 40 – tấm 5).
+  // Tâm tem cao 1500 trên mặt sàn trệt → +2.825. Tháo tem trước khi đóng cốp pha.
+  'C1a1E': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.B', o: [0.56, 0.07, 2.825], u: [0, 1, 0], v: [0, 0, -1]},
+  'C1a1N': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.2', o: [0.07, 0.56, 2.825], u: [-1, 0, 0], v: [0, 0, -1]},
 };
 
 const ELEMS = {
+  'C1a-T1': {
+    title: 'Cột C1 · tầng trệt', sub: 'Trục 2.A / 2.1 · 1050×1050 · mặt sàn +1.325 · đang buộc thép cột',
+    kind: 'col', col: 'C1-a', s: 0,
+    next: {scene: 'lift1', label: 'Xem thi công sắp tới', hint: 'Cột C1 tầng 1: thép cột (đang làm), cốp pha, đổ bê tông'},
+    built: {scene: 'xrayCol1', label: 'Đối chiếu thép cột đang buộc', hint: 'Số thanh, đường kính, đai, vùng nối, lớp bảo vệ'},
+  },
   'C1a-T3': {
     title: 'Cột C1 · tầng 3', sub: 'Trục 2.A / 2.1 · 1050×1050 · đợt đổ toàn khối C3 + S4',
     kind: 'col', col: 'C1-a', s: 2,
@@ -37,6 +48,28 @@ const ELEMS = {
 // Ngày chia từ Tiến độ Rev02: dòng 24 (C3 + S4) 29/12/2026–15/01/2027; dòng 25 (C4 + S5) 16/01–15/02/2027, có nghỉ Tết (~06/02/2027).
 // Ngày từng bước là dự kiến – BCH chỉnh tại đây khi có lịch chi tiết.
 const STEPS = {
+  // Tầng trệt: ngày DỰ KIẾN theo hiện trạng 24/10/2026 (đang buộc thép cột) – BCH chỉnh theo lịch thực tế
+  lift1: [
+    {id: 'L1-1', name: 'Thép cột tầng 1 (trệt → T2)', from: '2026-10-22', to: '2026-10-27',
+      ai: 'Tổ cốt thép; giám sát: KS hiện trường BCH, QA/QC', dk: 'Đã đổ sàn trệt; định vị tim cột; thép chờ từ tầng hầm đúng vị trí', nl: '1 tổ 8–10 người/khu; cẩu tháp; máy cắt uốn',
+      kt: 'Đếm đủ 36 thanh Ø25; nối chồng 1025 mm, so le 2 nhóm ≤ 50%; đai Ø12a100 (a200 vùng nút); con kê 40 mm; tim cột, độ thẳng đứng lồng thép', at: 'Dây an toàn khi buộc trên cao; bịt đầu thép chờ; giàn giáo buộc thép có lan can', hs: 'Biên bản nghiệm thu cốt thép cột; chứng chỉ thép, kéo mẫu', bv: 'S-70-01…03 (cột), S-00-02 mục XII (nối thép)',
+      method: ['Cột C1 1050×1050: 36Ø25 CB500-V (10 thanh mỗi mặt). Đai Ø12a100 thân cột, a200 vùng nút.',
+               'Nối chồng 41Ø = 1025 mm từ +100 trên mặt sàn, so le 2 nhóm, mỗi nhóm ≤ 50% số thanh.',
+               'Tầng 1 cao 4,6 m (+1.325 → +5.925): lồng thép cao, cần giằng tạm chống đổ trước khi đóng cốp pha.',
+               'Chạm vào lồng thép để xem số liệu; dùng nút "Đối chiếu thép cột đang buộc" ở trang chính để kiểm tra từng thanh.']},
+    {id: 'L1-2', name: 'Cốp pha cột tầng 1', from: '2026-10-28', to: '2026-10-29',
+      ai: 'Tổ cốp pha; giám sát: KS hiện trường BCH', dk: 'Đã nghiệm thu thép cột; có cữ chân cột', nl: '1 tổ 6–8 người; cây chống xiên, xà gồ 50×50',
+      kt: 'Thẳng đứng ≤ H/1000; tim ±5 mm; đủ chốt nêm, la, gông', at: 'Sàn công tác có lan can; khoan neo chân cây chống xiên đúng vị trí', hs: 'Biên bản nghiệm thu cốp pha cột', bv: 'Bản bố trí cốp pha (chờ NCC)',
+      method: ['Mô hình thể hiện cốp pha nhôm như tầng điển hình: W2450 + tấm mở rộng tới đáy dầm (≈ 3,9 m).',
+               'CẦN BCH XÁC NHẬN: tầng trệt cao 4,6 m dùng cốp pha nhôm hay cốp pha thường; đáy dầm T2 (mô hình tạm lấy dầm cao 700).',
+               'Cây chống xiên liên kết vào sóng đứng tấm, đầu trên ≈ 2/3 chiều cao; cây chống chân ở chân tấm.']},
+    {id: 'L1-3', name: 'Nghiệm thu + đổ bê tông cột tầng 1', from: '2026-10-30', to: '2026-10-30',
+      ai: 'Tổ bê tông; giám sát: BCH, QA/QC, TVGS', dk: 'Biên bản nghiệm thu thép + cốp pha có TVGS ký', nl: 'Bơm, 1 tổ đổ đầm 6–8 người',
+      kt: 'Độ sụt, lấy mẫu; đổ tới đáy dầm T2, đầm kỹ chân và đầu cột (cột cao 3,9 m: đổ qua ống/vòi để tránh phân tầng)', at: 'Người theo dõi cốp pha trong lúc đổ', hs: 'Phiếu giao bê tông, biên bản lấy mẫu', bv: 'Ghi chú chung kết cấu (mác bê tông cột tầng 1)',
+      method: ['Mác bê tông cột tầng 1 theo ghi chú chung kết cấu – kiểm tra lại trước khi đặt hàng.',
+               'Chiều cao rơi tự do lớn: dùng ống đổ, đổ từng lớp 40–50 cm.',
+               'Sàn T2 (cây chống, cốp pha, thép, cáp) chưa có trong mô hình – cần bản vẽ kết cấu sàn T2.']},
+  ],
   propsT4: [
     {id: 'P4-1', name: 'Cốp pha nhôm sàn T4 – tháo tấm sàn sớm, giữ cây chống V4', from: '2027-01-13', to: '2027-01-15',
       ai: 'Tổ cốp pha nhôm (NCC Kumkang / thầu phụ cốp pha), giám sát: KS hiện trường BCH', dk: 'Bê tông đủ 12 giờ (tấm đứng) và 36 giờ (tấm sàn), TVGS đồng ý bằng văn bản; mẫu nén 1 ngày đạt yêu cầu NCC', nl: '1 tổ 8–10 người/sàn điển hình; búa nhựa, dụng cụ tháo chốt, xe đẩy, máng chuyển tấm lên tầng trên', kt: 'Không có cây chống nào bị lỏng, nghiêng sau khi tháo tấm; đầu chống PH vẫn đỡ sát đáy sàn; mặt bê tông không sứt cạnh, không rỗ', at: 'Không đứng dưới vùng đang tháo; chuyển tấm bằng máng/lỗ chuyển, không ném; khu vực tháo có rào và biển báo', hs: 'Phiếu yêu cầu tháo cốp pha có TVGS ký; kết quả nén mẫu; ảnh hiện trạng sau tháo', bv: 'Bản bố trí cốp pha + cây chống của Kumkang (chờ); Sổ tay cốp pha nhôm', 

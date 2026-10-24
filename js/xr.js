@@ -44,7 +44,7 @@ const XR = (() => {
     if (!curTag) return;
     const fl = isFloor(curTag);
     if (stage === 0) say(fl ? 'Đưa dấu + vào TÂM tem trên sàn → bấm "Ghim tâm tem"' : 'Đứng chính diện tem, cách 1–1,5 m. Đưa dấu + vào TÂM mã QR → bấm "Ghim tâm tem"', 'wait');
-    else if (stage === 1) say('Đưa dấu + lên MẶT CỘT phía mũi tên chỉ (giữa mặt, thấp) → bấm "Ghim hướng"', 'wait');
+    else if (stage === 1) say('Đưa dấu + lên MẶT CỘT phía mũi tên chỉ (giữa mặt, thấp) – hoặc vạch sơn chân cột phía xa nếu chưa có cột → bấm "Ghim hướng"', 'wait');
     $('#xr-pin').textContent = stage === 1 ? 'Ghim hướng' : 'Ghim tâm tem';
   }
   async function start(mode) {

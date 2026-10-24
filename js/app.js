@@ -298,7 +298,8 @@ function buildContext(name) {
       const h = t / 2; g.add(box(Math.min(x1, x2) - h, Math.max(x1, x2) + h, Math.min(y1, y2) - h, Math.max(y1, y2) + h, z0, z1, m)); }
   };
   const z3 = LV['3FL'], z4 = LV['4FL'], z5 = LV['5FL'];
-  if (name === 'lift4' || name === 'xraySlabT4') { fl(z4 - 0.22, z4, 0.16); cols(z4, z5 - 0.22, 0.12); fl(z5 - 0.22, z5, 0.06); }
+  if (name === 'lift1' || name === 'xrayCol1') { const z1 = LV['1FL']; fl(z1 - 0.25, z1, 0.16); }
+  else if (name === 'lift4' || name === 'xraySlabT4') { fl(z4 - 0.22, z4, 0.16); cols(z4, z5 - 0.22, 0.12); fl(z5 - 0.22, z5, 0.06); }
   else { fl(z3 - 0.22, z3, 0.1); cols(z3, z4 - 0.22, 0.16); fl(z4 - 0.22, z4, 0.12); }
   g.userData.context = true; return g;
 }
@@ -358,6 +359,28 @@ function buildScene(name) {
     if (e.lap) root.add(label(`Nối thép cột ${fmtLv(e.lap.z0)} → ${fmtLv(e.lap.z2)}`, C1.x + C1.b/2 + 0.6, C1.y, (e.lap.z0 + e.lap.z2) / 2));
     root.add(label('Mặt sàn T5 ' + fmtLv(zT5), C1.x + 1.6, C1.y + 1.6, zT5 + 0.15));
     root.add(label('Mặt sàn T4 ' + fmtLv(zT4), C1.x + 1.6, C1.y + 1.6, zT4 + 0.15, {fg: '#cfd8e3'}));
+  } else if (name === 'lift1' || name === 'xrayCol1') {
+    // Tầng trệt: cột C1 tầng 1 (+1.325 → +5.925) đang buộc thép. Đáy dầm T2 tạm lấy dầm cao 700 – chờ bản vẽ sàn T2.
+    const z1 = LV['1FL'], z2 = LV['2FL'], top = z2 - 0.7, rec = colRec('C1-a'), e = rec.st[0];
+    root.add(phantomBox(EDGE, RX1, EDGE, RY1, z1 - 0.25, z1));
+    const xr = C1.x + C1.b/2 + 0.12;
+    if (name === 'xrayCol1') {
+      const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, z1, top, ghost(COL.conc, 0.12)); cc.userData.info = () => infoCol(rec, 0); root.add(cc);
+      root.add(colSteel('C1-a', 0, z1));
+      root.add(label(`${e.n}Ø${e.d} · đai Ø${e.td}a${mm(e.ts)} · BV 40`, xr, C1.y, z1 + 2.4));
+      if (e.lap) root.add(label(`Thép chờ lên T2: tới ${fmtLv(e.lap.z2)}`, xr, C1.y, z2 + 0.6));
+      root.add(label('Đỉnh cột = đáy dầm T2 ' + fmtLv(top) + ' (tạm)', xr, C1.y, top));
+    } else {
+      const s1 = new THREE.Group(); s1.add(colSteel('C1-a', 0, z1));
+      if (e.lap) s1.add(box(C1.x - C1.b/2 - 0.04, C1.x + C1.b/2 + 0.04, C1.y - C1.h/2 - 0.04, C1.y + C1.h/2 + 0.04, e.lap.z0, e.lap.z2, M.lap1));
+      add('L1-1', s1);
+      const alc = AL.column(C1, z1, top, EDGE); add('L1-2', alc.grp);
+      root.userData.bom = {'L1-2': AL.bomRows(alc.bom)};
+      const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, z1, top, ghost(COL.conc, 0.3)); cc.userData.info = () => infoCol(rec, 0); add('L1-3', cc);
+      if (e.lap) root.add(label(`Nối thép lên T2 ${fmtLv(e.lap.z0)} → ${fmtLv(e.lap.z2)}`, xr + 0.5, C1.y, (e.lap.z0 + e.lap.z2) / 2));
+      root.add(label('Đáy dầm T2 ' + fmtLv(top) + ' (tạm)', xr + 0.5, C1.y, top));
+    }
+    root.add(label('Mặt sàn trệt ' + fmtLv(z1), C1.x + 1.6, C1.y + 1.6, z1 + 0.12, {fg: '#cfd8e3'}));
   } else if (name === 'xrayColT3') {
     const rec = colRec('C1-a'), e = rec.st[2];
     const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT3, zT4 - 0.7, ghost(COL.conc, 0.18)); cc.userData.info = () => infoCol(rec, 2); root.add(cc);
@@ -489,7 +512,8 @@ function start3D(mode) {
   // nhìn từ trong nhà về góc trục 2.A/2.1: thấy rõ ô sàn quanh cột C1, phía sau là toàn sàn mờ
   const sc = curEl[mode].scene, zc = (sc === 'lift4' || sc === 'xraySlabT4' ? LV['4FL'] : LV['3FL']) + 2.0;
   let tgt, pos;
-  if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
+  if (sc === 'lift1' || sc === 'xrayCol1') { const z1 = LV['1FL']; tgt = W(0.07, 0.07, z1 + 2.6); pos = W(7.4, 6.0, z1 + 2.4); }
+  else if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
   else if (sc === 'propsT4') { tgt = W(4.0, 5.5, LV['3FL'] + 3.0); pos = W(10.5, 12.5, LV['3FL'] + 1.6); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
   else { tgt = W(4.5, 5.5, zc); pos = W(15, 16, zc + 5.5); }
   controls.target.copy(tgt); cam3D.position.copy(pos); controls.update();
