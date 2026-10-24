@@ -249,9 +249,13 @@ function slabPT(fl) {
   g.traverse(o => { if (o.userData && o.userData.kind === 'pt') { const u = o.userData; o.userData.info = () => infoPT(u); } });
   return g;
 }
+// Thép cột bất kỳ (22 cột, bảng thép đầy đủ S-70): dựng riêng từng cột khi cần, có lưu đệm
+const RBC = {};
+function rbFor(id) { core(); if (RB.COLS.some(r => r.c.id === id)) return RB; const c = MD.ALLCOLS.find(q => q.id === id); if (!c) return null;
+  return RBC[id] || (RBC[id] = makeRebar({lv: LV, cols: [c], noCores: true}, MD.SCH, M)); }
 function colSteel(id, s, clipLow) {
   core();
-  const rec = colRec(id), grp = new THREE.Group(), src = RB.ST[s].grp;
+  const R = rbFor(id), rec = R.COLS.find(r => r.c.id === id), grp = new THREE.Group(), src = R.ST[s].grp;
   const cx = rec.c.x, cy = rec.c.y, hb = Math.max(rec.c.b, rec.c.h) / 2 + 0.2;
   for (const ch of src.children) {
     if (ch.userData.kind === 'col') { if (ch.userData.c.id !== id) continue; const m = ch.clone(); m.userData = {kind: 'col', info: () => infoCol(rec, s)}; grp.add(m); continue; }
@@ -431,6 +435,16 @@ function buildScene(name) {
     }
     root.add(label('Mặt sàn trệt ' + fmtLv(z1), C1.x + 1.6, C1.y + 1.6, z1 + 0.12, {fg: '#cfd8e3'}));
     root.add(buildLinks(z1, z2, C1));
+    const fid = curTag && TAGS[curTag] && TAGS[curTag].col;
+    if (fid && fid !== 'C1-a') {
+      const fc = MD.ALLCOLS.find(q => q.id === fid), R = rbFor(fid), fr = R && R.COLS.find(r => r.c.id === fid);
+      if (fc && fr && fr.st[0]) {
+        const g = new THREE.Group(); g.add(colSteel(fid, 0, z1)); g.userData.step = name === 'lift1' ? 'L1-1' : undefined; root.add(g);
+        const e0 = fr.st[0], lx = fc.x + fc.b / 2 + 0.12;
+        root.add(label(`${fid}: ${e0.n}Ø${e0.d} · đai Ø${e0.td}a${mm(e0.ts)} · BV 40`, lx, fc.y, z1 + 3.1));
+        if (e0.lap) root.add(label(`Nối lên T2 ${fmtLv(e0.lap.z0)} → ${fmtLv(e0.lap.z2)}`, lx, fc.y, (e0.lap.z0 + e0.lap.z2) / 2));
+      }
+    }
     if (name === 'lift1') {
       const fx = C1.x + C1.b/2 + 0.08, fy = C1.y, ox = C1.x + C1.b/2 + 0.08, W_ = (st, ...a) => { const g = warn(...a); g.userData.step = st; root.add(g); };
       // Bước 1 – thép cột
