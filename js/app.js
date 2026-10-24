@@ -307,6 +307,8 @@ function buildContext(name) {
 // Lớp LIÊN KẾT TỔNG THỂ tầng trệt (hiện cả ở AR): toàn bộ cột, vách lõi tầng 1 + dầm sàn T2; dầm nối vào cột C1 tô nổi.
 // Lưới cột, dầm lấy theo bản vẽ tầng điển hình (cùng lưới trục) – CHỜ bản vẽ kết cấu sàn T2 để chỉnh đúng dầm tầng 2.
 function buildLinks(z1, z2, focus) {
+  const here = curTag && TAGS[curTag] && TAGS[curTag].col;
+  const mH = new THREE.MeshLambertMaterial({color: 0xffd23f, transparent: true, opacity: 0.4, depthWrite: false});
   const g = new THREE.Group(), near = (x, y) => Math.hypot(x - focus.x, y - focus.y);
   const mC = new THREE.MeshLambertMaterial({color: 0x9fb3c8, transparent: true, opacity: 0.22, depthWrite: false});
   const mW = new THREE.MeshLambertMaterial({color: 0x7f93a8, transparent: true, opacity: 0.2, depthWrite: false});
@@ -316,10 +318,11 @@ function buildLinks(z1, z2, focus) {
   const top = z2 - 0.7;
   for (const c of MD.ALLCOLS) {
     if (near(c.x, c.y) < 0.1) continue;
-    const b = box(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, z1, top, mC);
+    const isHere = c.id === here, b = box(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, z1, top, isHere ? mH : mC);
     b.userData.info = () => ({title: `Cột ${c.id} · ${c.type} · ${mm(c.b)}×${mm(c.h)}`, rows: [['Vị trí', `x = ${c.x.toFixed(2)}, y = ${c.y.toFixed(2)} m · cách cột C1 ${near(c.x, c.y).toFixed(1)} m`], ['Tầng', `Tầng 1: ${fmtLv(z1)} → đáy dầm T2 ≈ ${fmtLv(top)}`], ['Lưu ý', 'Lưới cột theo bản vẽ tầng điển hình – đối chiếu bản vẽ tầng trệt']]});
-    g.add(b, edge(b, 0x9fb3c8));
-    if (near(c.x, c.y) < 16) g.add(label(c.id.replace('-a', ''), c.x, c.y, top + 0.15, {fg: '#e8eef5', bg: 'rgba(30,40,52,.85)', h: 0.026}));
+    g.add(b, edge(b, isHere ? 0xffd23f : 0x9fb3c8));
+    if (isHere) g.add(label(`Cột ${c.id} – tem đang quét`, c.x, c.y, z1 + 2.2, {fg: '#151515', bg: 'rgba(255,210,63,.95)', h: 0.03}));
+    else if (near(c.x, c.y) < 16 || (here && Math.hypot(c.x - MD.ALLCOLS.find(q => q.id === here).x, c.y - MD.ALLCOLS.find(q => q.id === here).y) < 16)) g.add(label(c.id.replace('-a', ''), c.x, c.y, top + 0.15, {fg: '#e8eef5', bg: 'rgba(30,40,52,.85)', h: 0.026}));
   }
   for (const k of MD.CORES) for (const [x1, y1, x2, y2, t] of k.walls) {
     const h = t / 2, b = box(Math.min(x1, x2) - h, Math.max(x1, x2) + h, Math.min(y1, y2) - h, Math.max(y1, y2) + h, z1, z2 - 0.22, mW);
@@ -568,7 +571,7 @@ function start3D(mode) {
   // nhìn từ trong nhà về góc trục 2.A/2.1: thấy rõ ô sàn quanh cột C1, phía sau là toàn sàn mờ
   const sc = curEl[mode].scene, zc = (sc === 'lift4' || sc === 'xraySlabT4' ? LV['4FL'] : LV['3FL']) + 2.0;
   let tgt, pos;
-  if (sc === 'lift1' || sc === 'xrayCol1') { const z1 = LV['1FL']; tgt = W(1.5, 1.5, z1 + 2.4); pos = W(11, 9, z1 + 4.2); }
+  if (sc === 'lift1' || sc === 'xrayCol1') { const z1 = LV['1FL'], f = MD.ALLCOLS.find(c => c.id === (TAGS[curTag].col || 'C1-a')) || {x: 0.07, y: 0.07}, sx = f.x > 38 ? -1 : 1, sy = f.y > 14 ? -1 : 1; tgt = W(f.x + 1.4 * sx, f.y + 1.4 * sy, z1 + 2.4); pos = W(f.x + 11 * sx, f.y + 9 * sy, z1 + 4.2); }
   else if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
   else if (sc === 'propsT4') { tgt = W(4.0, 5.5, LV['3FL'] + 3.0); pos = W(10.5, 12.5, LV['3FL'] + 1.6); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
   else { tgt = W(4.5, 5.5, zc); pos = W(15, 16, zc + 5.5); }
@@ -735,12 +738,12 @@ function markerToWorld(tag) {   // ma trận: toạ độ 3D (thế giới) → 
   const R = new THREE.Matrix4().set(u.x, u.y, u.z, 0, v.x, v.y, v.z, 0, n.x, n.y, n.z, 0, 0, 0, 0, 1);
   return R.multiply(new THREE.Matrix4().makeTranslation(-o.x, -o.y, -o.z));
 }
-let smooth = null;
+let smooth = null, lastTok = null, lastTokAt = 0;
 function onDetect(ev) {
   busy = false; const r = ev.data; window.__last = r; if (!arOn) return;
   if (!r || !r.loc) return;
   const tok = parseTok(r.text); if (!tok || !TAGS[tok]) { setStatus('Tem không thuộc dự án này', 'bad'); return; }
-  if (tok !== curTag && TAGS[tok].el !== TAGS[curTag].el) { setStatus('Đã nhận tem ' + ELEMS[TAGS[tok].el].title + ' – về trang chính để chuyển', 'wait'); }
+  if (tok !== lastTok) { lastTok = tok; lastTokAt = performance.now(); }   // tem khác (cột khác, mặt khác): cùng hệ toạ độ → căn lại toàn bộ mô hình
   const s = SITE.qrSize / 2, sc = r.sc, L = r.loc;
   const dst = [L.topLeftCorner, L.topRightCorner, L.bottomRightCorner, L.bottomLeftCorner].map(p => [p.x / sc, p.y / sc]);
   const H = homography([[-s, -s], [s, -s], [s, s], [-s, s]], dst); if (!H) return;
@@ -755,7 +758,8 @@ function onDetect(ev) {
   smooth = new THREE.Matrix4().compose(pos, q, new THREE.Vector3(1, 1, 1));
   poseCam = smooth; lostQ = poseQ; lastSeen = performance.now();
   const dist = Tcm.elements[14];
-  setStatus(`Đang bám tem ✓ · cách ${dist.toFixed(1)} m · chạm vào cấu kiện để xem thông số`, 'ok');
+  const tg = TAGS[tok], who = tg.col ? `cột ${tg.col.replace('-a', '')}` : tok;
+  setStatus(`Đang bám tem ${who} ✓ · cách ${dist.toFixed(1)} m${tok !== curTag && performance.now() - lastTokAt < 3000 ? ' · ĐÃ CĂN LẠI theo tem này' : ' · chạm cấu kiện để xem thông số'}`, 'ok');
 }
 function parseTok(text) { if (!text) return null; const m = text.match(/#([A-Za-z0-9]+)\s*$/) || text.match(/^([A-Za-z0-9]+)$/); return m ? m[1] : null; }
 function pred() {   // tư thế hiện tại: lần thấy tem gần nhất + xoay con quay

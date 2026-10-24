@@ -50,6 +50,28 @@ const ELEMS = {
   },
 };
 
+// ---- Tem tầng trệt cho TẤT CẢ cột (4 mặt mỗi cột), buộc trên lồng thép, tâm cao 1,5 m. Mã: T1 + tên cột + mặt (E/N/W/S).
+// Mọi tem dùng chung hệ toạ độ công trình → quét tem cột nào cũng căn lại toàn bộ mô hình đúng vị trí, kích thước.
+(function () {
+  const z1 = MD.LV['1FL'], zt = z1 + 1.5, ins = 0.035;
+  const FACES = [['E', 'mặt phía +X', [1, 0], [0, 1, 0]], ['N', 'mặt phía +Y', [0, 1], [-1, 0, 0]], ['W', 'mặt phía −X', [-1, 0], [0, -1, 0]], ['S', 'mặt phía −Y', [0, -1], [1, 0, 0]]];
+  for (const c of MD.ALLCOLS) {
+    if (c.id === 'C1-a') continue;   // cột C1 đã có tem C1a1E/N/W/S
+    const el = 'K1-' + c.id;
+    ELEMS[el] = {title: `Cột ${c.id} · tầng trệt`, sub: `${Math.round(c.b * 1000)}×${Math.round(c.h * 1000)} · sàn trệt +1.325 → T2 +5.925`, kind: 'col', col: c.id, s: 0,
+      next: {scene: 'lift1', label: 'Xem thi công sắp tới', hint: 'Mặt bằng tầng 1: cột này + liên kết dầm, cột lân cận; cột C1 thể hiện chi tiết'},
+      built: {scene: 'lift1', label: 'Xem liên kết tổng thể', hint: 'Toàn bộ cột, vách, dầm T2 quanh vị trí đứng'}};
+    for (const [F, nm, d, u] of FACES) {
+      const hx = c.b / 2, hy = c.h / 2, ox = c.x + d[0] * (hx - ins), oy = c.y + d[1] * (hy - ins);
+      const ax = hx - 0.065, ay = hy - 0.065;   // thép góc (lớp bảo vệ + đai + nửa thanh)
+      // chân thép góc trái → phải khi đứng nhìn vào mặt có tem (bên phải = u)
+      const L = [c.x + d[0] * ax - u[0] * ax, c.y + d[1] * ay - u[1] * ay, z1], R = [c.x + d[0] * ax + u[0] * ax, c.y + d[1] * ay + u[1] * ay, z1];
+      TAGS['T1' + c.id.replace(/[^A-Za-z0-9]/g, '') + F] = {el, col: c.id, face: `Lồng thép cột ${c.id}, ${nm}`, o: [+ox.toFixed(4), +oy.toFixed(4), zt], u, v: [0, 0, -1], xrPts: [L, R]};
+    }
+  }
+  for (const k of ['C1a1E', 'C1a1N', 'C1a1W', 'C1a1S']) if (TAGS[k]) TAGS[k].col = 'C1-a';
+})();
+
 // Biện pháp: cốp pha nhôm Kumkang cho cột, vách, dầm, sàn – mỗi đợt đổ toàn khối "cột tầng n + sàn tầng n+1" (checklist NCC Rev06).
 // Ngày chia từ Tiến độ Rev02: dòng 24 (C3 + S4) 29/12/2026–15/01/2027; dòng 25 (C4 + S5) 16/01–15/02/2027, có nghỉ Tết (~06/02/2027).
 // Ngày từng bước là dự kiến – BCH chỉnh tại đây khi có lịch chi tiết.

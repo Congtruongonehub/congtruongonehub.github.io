@@ -46,13 +46,22 @@ const XR = (() => {
     return new THREE.Matrix4().makeTranslation(tgt.x - mid.x, tgt.y - mid.y, tgt.z - mid.z).multiply(R);
   }
   const twoPt = tok => !!(TAGS[tok] && TAGS[tok].xrPts);
+  // tem dùng để căn: mặc định tem vừa quét; khi "Căn lại" có thể chọn tem cột khác gần đó
+  const pinTag = () => { const el = document.querySelector('#xr-tem'); return (el && el.value && TAGS[el.value]) ? el.value : curTag; };
+  function fillTems() {
+    const el = document.querySelector('#xr-tem'); if (!el || !curTag) return;
+    const z = TAGS[curTag].o[2], camP = A ? V().setFromMatrixPosition(renderer.xr.getCamera(camXR).matrixWorld).applyMatrix4(A.clone().invert()) : null;
+    const list = Object.keys(TAGS).filter(k => Math.abs(TAGS[k].o[2] - z) < 0.5).map(k => { const t = TAGS[k], p = W(...t.o); return {k, t, d: camP ? camP.distanceTo(p) : (k === curTag ? 0 : 1e9)}; }).sort((a, b) => a.d - b.d).slice(0, 12);
+    el.innerHTML = list.map(({k, t, d}) => `<option value="${k}">${t.col ? 'Cột ' + t.col.replace('-a', '') : k} · ${t.face.replace(/^Lồng thép cột [^,]+, /, '')}${d < 1e8 && camP ? ` · ${d.toFixed(0)} m` : ''}</option>`).join('');
+    el.value = list.some(x => x.k === curTag) && !camP ? curTag : (list[0] && list[0].k); el.hidden = false;
+  }
   // ---------- giao diện ----------
   const $ = s => document.querySelector(s);
   function say(t, k) { setStatus(t, k); }
   function guide() {
-    if (!curTag) return;
-    const fl = isFloor(curTag);
-    if (twoPt(curTag)) {
+    if (!curTag) return; const tk = pinTag();
+    const fl = isFloor(tk);
+    if (twoPt(tk)) {
       say(stage === 0 ? 'Đứng nhìn vào mặt có tem. Đưa dấu + vào CHÂN thanh thép GÓC TRÁI (sát mặt sàn) → bấm "Ghim"' : 'Đưa dấu + vào CHÂN thanh thép GÓC PHẢI của cùng mặt đó (sát sàn) → bấm "Ghim"', 'wait');
       $('#xr-pin').textContent = stage === 0 ? 'Ghim góc trái' : 'Ghim góc phải'; return;
     }
@@ -89,7 +98,7 @@ const XR = (() => {
     session.addEventListener('end', cleanup);
     session.addEventListener('select', onSelect);
     renderer.setAnimationLoop(onFrame);
-    guide();
+    fillTems(); guide();
   }
   function onFrame(t, frame) {
     if (!frame) return;
@@ -103,16 +112,16 @@ const XR = (() => {
   function camFwd() { const c = renderer.xr.getCamera(camXR); return V(0, 0, -1).transformDirection(c.matrixWorld); }
   function pin() {
     if (!lastHit) { say('Chưa dò được bề mặt – di chuyển máy chậm qua lại vài giây cho máy nhận mặt cột / sàn', 'bad'); return; }
-    const fl = isFloor(curTag);
-    if (twoPt(curTag)) {
+    const tk = pinTag(), fl = isFloor(tk);
+    if (twoPt(tk)) {
       if (Math.abs(hitNormal().y) < 0.7) { say('Dấu + đang không nằm trên mặt sàn – hạ máy, ngắm sát chân thép trên sàn', 'bad'); return; }
       if (stage === 0) { first = hitPoint(); stage = 1; guide(); }
-      else { const P = TAGS[curTag].xrPts; apply(solveTwo(P[0], P[1], first, hitPoint())); }
+      else { const P = TAGS[tk].xrPts; apply(solveTwo(P[0], P[1], first, hitPoint())); }
       return;
     }
-    if (stage === 0 && !fl) apply(solveWall(curTag, hitPoint(), hitNormal(), camFwd()));
+    if (stage === 0 && !fl) apply(solveWall(tk, hitPoint(), hitNormal(), camFwd()));
     else if (stage === 0) { first = hitPoint(); stage = 1; guide(); }
-    else if (stage === 1) apply(solveFloor(curTag, first, hitPoint(), hitNormal()));
+    else if (stage === 1) apply(solveFloor(tk, first, hitPoint(), hitNormal()));
   }
   function apply(M) {
     A = M; stage = 2; xrRoot.matrix.copy(A); xrRoot.matrixWorldNeedsUpdate = true; xrRoot.visible = true;
@@ -135,7 +144,7 @@ const XR = (() => {
     CLIP.forEach((p, i) => p.copy(CLIP0[i]));
     if (xrRoot) { if (cur) { xrRoot.remove(cur); scene.add(cur); } scene.remove(xrRoot); xrRoot = null; }
     if (reticle) scene.remove(reticle);
-    $('#xr-ui').hidden = true; document.body.classList.remove('mxr');
+    $('#xr-ui').hidden = true; const xt = $('#xr-tem'); if (xt) xt.hidden = true; document.body.classList.remove('mxr');
     if (view === 'xr') { view = 'home'; goHome(); }
   }
   function end() { if (session) session.end().catch(() => cleanup()); else if (view === 'xr' || xrRoot) cleanup(); }
@@ -150,7 +159,8 @@ const XR = (() => {
   }
   document.addEventListener('DOMContentLoaded', () => {});
   if ($('#xr-pin')) {
-    $('#xr-pin').onclick = () => { if (stage === 2) { stage = 0; first = null; guide(); } else pin(); };
+    $('#xr-pin').onclick = () => { if (stage === 2) { stage = 0; first = null; fillTems(); guide(); } else pin(); };
+    const st = $('#xr-tem'); if (st) { st.onchange = () => { stage = 0; first = null; guide(); }; st.addEventListener('beforexrselect', e => e.preventDefault()); }
     $('#xr-exit').onclick = end;
     for (const s of ['#xr-ui', '.top', '#steps', '#info', '#settings']) { const el = $(s); el && el.addEventListener('beforexrselect', e => e.preventDefault()); }
     $('#b-xr').onclick = () => start('next');

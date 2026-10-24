@@ -96,6 +96,7 @@ body.m3d .status{display:none}
 #stepnav button:disabled{opacity:.35}#sn-prev{background:var(--panel)!important;color:var(--fg)!important}
 body.mxr #stepnav{bottom:calc(env(safe-area-inset-bottom) + 172px)}
 /* ---- AR bám không gian (WebXR) ---- */
+#xr-tem{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 120px);max-width:calc(100% - 32px);min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--acc);background:var(--panel);color:var(--fg);font-size:14px}
 .big.xr{border-color:#4a6b8a;background:#18283a}
 body.mxr #v-run{background:transparent}
 body.mxr #gl,body.mxr #cam{visibility:hidden}
@@ -147,6 +148,7 @@ body.mxr #gl,body.mxr #cam{visibility:hidden}
   <div id="info" hidden></div>
   <div id="xr-ui" hidden>
     <div id="xr-cross"></div>
+    <select id="xr-tem" hidden aria-label="Tem dùng để căn"></select>
     <div id="xr-bar"><button id="xr-pin">Ghim tâm tem</button><button id="xr-exit">Thoát</button></div>
   </div>
   <div id="stepnav" hidden><button id="sn-prev" aria-label="Bước trước">‹</button><span id="sn-t"></span><button id="sn-next">Bước tiếp ›</button></div>
