@@ -95,6 +95,17 @@ body.m3d .status{display:none}
 #stepnav button{min-height:44px;padding:0 16px;border-radius:999px;border:0;background:var(--acc);color:#151515;font-weight:700;font-size:15px;cursor:pointer}
 #stepnav button:disabled{opacity:.35}#sn-prev{background:var(--panel)!important;color:var(--fg)!important}
 body.mxr #stepnav{bottom:calc(env(safe-area-inset-bottom) + 172px)}
+#info .say{float:right;margin:-2px 44px 0 0;min-height:36px;padding:0 14px;border-radius:999px;border:0;background:var(--acc);color:#151515;font-weight:700;font-size:14px;cursor:pointer}
+.top .ic.on{background:var(--acc);color:#111}
+/* chế độ nắng: nền đen đặc, chữ to, đậm, viền vàng */
+body.sun{--panel:#000;--mut:#e6e6e6;--fg:#fff}
+body.sun .status{font-size:16px;font-weight:700;border:2px solid var(--acc);background:#000}
+body.sun #info{background:#000;border:2px solid var(--acc);backdrop-filter:none}
+body.sun #info dl{font-size:17px;font-weight:600}body.sun #info h3{font-size:20px}
+body.sun .step{background:#000;border-width:2px;opacity:1}body.sun .step span{font-size:16px;font-weight:700}
+body.sun #stepnav span{font-size:15px;font-weight:700;border:2px solid var(--acc)}
+body.sun .top .tt b{font-size:19px}body.sun .top .tt span{font-size:15px}
+body.sun .top{background:#000}
 /* ---- AR bám không gian (WebXR) ---- */
 #xr-tem{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 120px);max-width:calc(100% - 32px);min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--acc);background:var(--panel);color:var(--fg);font-size:14px}
 .big.xr{border-color:#4a6b8a;background:#18283a}
@@ -137,6 +148,7 @@ body.mxr #gl,body.mxr #cam{visibility:hidden}
   <div class="top">
     <button class="ic" id="tb-back" aria-label="Về trang chính">‹</button>
     <div class="tt"><b id="tb-title"></b><span id="tb-mode"></span></div>
+    <button class="ic" id="tb-sun" aria-label="Chế độ nắng">☀</button>
     <button class="ic" id="tb-set" aria-label="Hiệu chỉnh">⚙</button>
   </div>
   <div id="status" class="status"></div>

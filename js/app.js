@@ -306,6 +306,13 @@ function buildContext(name) {
 
 // Lớp LIÊN KẾT TỔNG THỂ tầng trệt (hiện cả ở AR): toàn bộ cột, vách lõi tầng 1 + dầm sàn T2; dầm nối vào cột C1 tô nổi.
 // Lưới cột, dầm lấy theo bản vẽ tầng điển hình (cùng lưới trục) – CHỜ bản vẽ kết cấu sàn T2 để chỉnh đúng dầm tầng 2.
+// Điểm cần chú ý: chấm đỏ đánh số + thẻ thông tin (khớp nối, vị trí liên kết, chỗ hay sai)
+function warn(n, x, y, z, title, rows) {
+  const g = new THREE.Group(), m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), new THREE.MeshBasicMaterial({color: 0xff3b30, depthTest: false}));
+  m.position.copy(W(x, y, z)); m.renderOrder = 30; m.userData.info = () => ({title: `⚠ ${n}. ${title}`, rows}); m.userData.warn = true;
+  g.add(m, label(`⚠ ${n} ${title}`, x, y, z + 0.13, {fg: '#fff', bg: 'rgba(214,40,30,.95)', h: 0.028}));
+  return g;
+}
 function buildLinks(z1, z2, focus) {
   const here = curTag && TAGS[curTag] && TAGS[curTag].col;
   const mH = new THREE.MeshLambertMaterial({color: 0xffd23f, transparent: true, opacity: 0.4, depthWrite: false});
@@ -424,6 +431,22 @@ function buildScene(name) {
     }
     root.add(label('Mặt sàn trệt ' + fmtLv(z1), C1.x + 1.6, C1.y + 1.6, z1 + 0.12, {fg: '#cfd8e3'}));
     root.add(buildLinks(z1, z2, C1));
+    if (name === 'lift1') {
+      const fx = C1.x + C1.b/2 + 0.08, fy = C1.y, ox = C1.x + C1.b/2 + 0.08, W_ = (st, ...a) => { const g = warn(...a); g.userData.step = st; root.add(g); };
+      // Bước 1 – thép cột
+      W_('L1-1', 1, fx, fy - 0.3, z1 + 0.6, 'Nối chồng chân cột', [['Kiểm tra', 'Chiều dài nối 41Ø = 1025 mm từ +100 trên mặt sàn; so le 2 nhóm, mỗi nhóm ≤ 50% số thanh; buộc chặt 3 điểm/mối nối'], ['Hay sai', 'Nối cùng 1 cao độ toàn bộ thanh; thiếu chiều dài nối do thép chờ cắt ngắn']]);
+      W_('L1-1', 2, fx, fy + 0.3, z1 + 2.0, 'Lớp bảo vệ 40 + đai', [['Kiểm tra', 'Con kê 40 mm (tới mép đai) ≥ 4 cái/m² mỗi mặt; đai Ø12a100, móc 135°, đủ đai giằng trong'], ['Hay sai', 'Thiếu con kê làm lồng thép sát cốp pha; móc đai 90°']]);
+      W_('L1-1', 3, fx, fy, top - 0.35, 'Nút khung dầm – cột (đáy dầm T2)', [['Kiểm tra', 'Đai cột vẫn liên tục qua chiều cao dầm (a200 vùng nút); chừa khe cho thép dầm T2 neo vào cột 42Ø'], ['Liên kết', 'Dầm tô cam trên mô hình là dầm gối vào cột C1 – kiểm tra cao độ đáy dầm trước khi chốt cao độ đỉnh cột']]);
+      if (e.lap) W_('L1-1', 4, fx, fy - 0.3, e.lap.z1 || (e.lap.z0 + e.lap.z2) / 2, 'Thép chờ lên T2', [['Kiểm tra', `Chờ đủ chiều dài nối lên T2 (${fmtLv(e.lap.z0)} → ${fmtLv(e.lap.z2)}), so le 2 nhóm; chụp nắp nhựa đầu thép`]]);
+      // Bước 2 – cốp pha
+      W_('L1-2', 5, ox + 0.1, fy, z1 + 0.1, 'Chân cốp pha', [['Kiểm tra', 'Cữ chân / kicker đúng tim; trám vữa kín khe chân chống mất nước xi măng; có cửa vệ sinh chân cột'], ['Hay sai', 'Hở chân → rỗ chân cột']]);
+      W_('L1-2', 6, ox + 0.1, fy - 0.26, z1 + 1.2, 'Mép giáp mí + la', [['Kiểm tra', 'Đủ chốt + nêm @300 ở mọi mép giáp mí; la xuyên cột @300 trong 1,2 m dưới, @600 phía trên (sơ bộ)'], ['Hay sai', 'Thiếu nêm ở tấm trên cùng; la không xuyên đúng khe']]);
+      W_('L1-2', 7, ox + 0.1, fy, top, 'Đỉnh cốp pha = đáy dầm T2', [['Kiểm tra', `Cao độ đỉnh cốp pha ${fmtLv(top)} (tạm – chờ bản vẽ T2); thẳng đứng ≤ H/1000 kiểm bằng dây dọi / máy`]]);
+      W_('L1-2', 8, ox + 1.4, fy, z1 + 0.05, 'Chân cây chống xiên', [['Kiểm tra', 'Neo chân chắc vào sàn; ren khoá; không tựa vào lồng thép, giàn giáo']]);
+      // Bước 3 – bê tông
+      W_('L1-3', 9, ox + 0.1, fy, top + 0.05, 'Mạch ngừng đỉnh cột', [['Kiểm tra', 'Đổ tới đáy dầm T2, không cao hơn; sau khi tháo cốp pha: đục nhám, vệ sinh, tưới ẩm trước khi đổ dầm sàn'], ['Liên kết', 'Đây là chỗ nối bê tông cột với dầm sàn T2']]);
+      W_('L1-3', 10, ox + 0.1, fy + 0.3, z1 + 0.25, 'Chân cột khi đổ', [['Kiểm tra', 'Vệ sinh, tưới ẩm chân; đổ lớp vữa lót cùng mác ≈ 5 cm trước; đầm kỹ lớp đầu']]);
+    }
   } else if (name === 'xrayColT3') {
     const rec = colRec('C1-a'), e = rec.st[2];
     const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT3, zT4 - 0.7, ghost(COL.conc, 0.18)); cc.userData.info = () => infoCol(rec, 2); root.add(cc);
@@ -446,6 +469,7 @@ function buildScene(name) {
 // ---------- trạng thái theo tiến độ + nghiệm thu ----------
 function stepStatus(st) {
   const rec = NT.records.filter(r => r.step === st.id);
+  if (st.doneLive) return 'done';
   const tick = rec.find(r => typeof r.done === 'boolean');
   if (tick) return tick.done ? 'done' : 'todo';
   const to = new Date(st.to + 'T23:59:59'), from = new Date(st.from + 'T00:00:00');
@@ -489,7 +513,8 @@ function setContent(sceneName) {
 }
 // Chế độ AR (camera): mô hình bán trong suốt để vẫn thấy cấu kiện thật phía sau, dễ đối chiếu
 function arLook(root, op = 0.5) {
-  root.traverse(o => { if (!o.material || o.userData.phantom || o.isSprite || (o.parent && o.parent.userData.links)) return;
+  if (SUN) op = 0.85;
+  root.traverse(o => { if (!o.material || o.userData.phantom || o.isSprite || o.userData.warn || (o.parent && o.parent.userData.links)) return;
     const one = m => { if (m.colorWrite === false) return m; const c = m.clone(); c.transparent = true; c.opacity = Math.min(m.opacity ?? 1, op); c.depthWrite = false; return c; };
     o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material); });
 }
@@ -506,7 +531,7 @@ function navText() { const el = $('#sn-t'); if (!el || !cur) return; const st = 
 function applySteps() { if (!cur) return; for (const ch of cur.children) if (ch.userData.step) ch.visible = shown.has(ch.userData.step); }
 
 // ---------- giao diện ----------
-function show(id) { for (const el of document.querySelectorAll('.view')) el.hidden = el.id !== id; }
+function show(id) { for (const el of document.querySelectorAll('.view')) el.hidden = el.id !== id; if (typeof keepAwake === 'function') keepAwake(id === 'v-run'); if (id !== 'v-run') stopSpeak(); }
 function statusChip(s) { return {done: '<span class="chip ok">Đã xong</span>', now: '<span class="chip now">Đang làm</span>', todo: '<span class="chip">Sắp tới</span>'}[s]; }
 function renderSteps() { setTimeout(navText, 0);
   const box = $('#steps'), steps = cur ? cur.userData.steps : [];
@@ -524,6 +549,21 @@ $('#steps').addEventListener('click', e => {
 });
 
 // Thẻ đầy đủ của 1 bước: thời gian, trạng thái, ai làm, điều kiện bắt đầu, biện pháp, nhân lực, kiểm tra, an toàn, hồ sơ, bản vẽ, khối lượng
+let TD = {}, DWG = [];
+async function loadLive() {
+  if (!API) return;
+  try { const r = await api({action: 'tiendo'}); if (r.ok) { TD = {}; for (const x of r.steps) TD[x.id] = x;
+    for (const L of Object.values(STEPS)) for (const st of L) { const o = TD[st.id]; if (o) { if (o.from) st.from = o.from; if (o.to) st.to = o.to; st.doneLive = o.done; st.noteLive = o.note; } }
+    if (cur) renderSteps(); } } catch (e) {}
+  try { const r = await api({action: 'banve'}); if (r.ok) DWG = r.drawings || []; } catch (e) {}
+}
+// bản vẽ đã duyệt khớp với mã trong mục "Bản vẽ" của bước (vd "S-70-01…03" khớp S-70-01, S-70-02, S-70-03)
+function dwgFor(text) {
+  if (!text || !DWG.length) return [];
+  const codes = new Set(); for (const m of text.matchAll(/([A-Z]{1,3})-(\d{2,3})-(\d{2,3})(?:…(\d{2,3}))?/g)) { const a = +m[3], b = m[4] ? +m[4] : a; for (let i = a; i <= b; i++) codes.add(`${m[1]}-${m[2]}-${String(i).padStart(m[3].length, '0')}`); }
+  for (const m of text.matchAll(/([A-Z]{1,3})-(\d{2,3})(?![-\d])/g)) for (const d of DWG) if (d.code.startsWith(`${m[1]}-${m[2]}-`)) codes.add(d.code);
+  return DWG.filter(d => codes.has(d.code)).sort((a, b) => a.code.localeCompare(b.code));
+}
 function stepInfo(st, bom) {
   const S = {done: 'Đã xong', now: 'Đang làm', todo: 'Sắp tới'}[stepStatus(st)];
   const nhs = (NT.records || []).concat(apiRecs || []).filter(r => r.step === st.id).length;
@@ -536,20 +576,42 @@ function stepInfo(st, bom) {
   if (st.kt) rows.push(['Kiểm tra, nghiệm thu', st.kt]);
   if (st.at) rows.push(['An toàn', st.at]);
   if (st.hs) rows.push(['Hồ sơ cần có', st.hs + `<br><span style="color:var(--acc)">Đã tải lên: ${nhs} hồ sơ</span>`]);
-  if (st.bv) rows.push(['Bản vẽ, tài liệu', st.bv]);
+  if (st.bv) { const dw = dwgFor(st.bv);
+    rows.push(['Bản vẽ, tài liệu', st.bv + (dw.length ? '<br>' + dw.map(d => `<a class="dwg" href="${esc(d.url)}" target="_blank" rel="noopener">📄 ${esc(d.code)} · Rev ${esc(d.rev)} · ${fmtDate(d.date)}</a>`).join('') + '<br><span style="color:var(--ok)">Bản mới nhất đã duyệt – dùng để nghiệm thu</span>' : '<br><span style="color:var(--mut)">Chưa có bản duyệt trên hệ thống</span>')]); }
+  if (st.noteLive) rows.splice(1, 0, ['Ghi chú BCH', st.noteLive]);
   if (bom && bom.length) rows.push(H('Thống kê cấu kiện (mô phỏng)'), ...bom);
   return {title: st.name, rows};
 }
 function placeInfo() { const sb = $('#steps'), el = $('#info'); if (!el) return; const sn = $('#stepnav'), h = (sb && !sb.hidden ? sb.offsetHeight : 0) + (sn && !sn.hidden ? 56 : 0); el.style.bottom = `calc(env(safe-area-inset-bottom) + ${Math.max(h, 12) + 10}px)`; el.style.maxHeight = `calc(100% - ${h + 150}px)`; }
 addEventListener('resize', () => placeInfo());
-function showInfo(inf) { placeInfo();
+// ---- Đọc to bằng giọng nói tiếng Việt (công nhân nghe thay vì đọc) ----
+let VOICE = null, lastInfo = null;
+function pickVoice() { try { const vs = speechSynthesis.getVoices(); VOICE = vs.find(v => /^vi/i.test(v.lang)) || null; } catch (e) {} }
+try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
+function plain(h) { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); }
+function speak(inf) {
+  if (!('speechSynthesis' in window) || !inf) return false;
+  speechSynthesis.cancel();
+  const txt = [inf.title].concat(inf.rows.slice(0, (i => i < 0 ? undefined : i)(inf.rows.findIndex(([k, v]) => k === '—' && /Thống kê/.test(v)))).map(([k, v]) => (k === '—' ? '' : (/^\d+$/.test(k) ? 'Ý ' + k : k) + '. ') + plain(v)))
+    .join('. ').replace(/Ø/g, ' phi ').replace(/(\d),(\d)/g, '$1 phẩy $2').replace(/×/g, ' nhân ').replace(/≤/g, ' không quá ').replace(/≥/g, ' tối thiểu ').replace(/@/g, ' bước ').replace(/\+(\d)/g, ' cốt $1').replace(/→/g, ' đến ');
+  // đọc theo từng câu để máy không cắt ngang câu dài
+  for (const part of txt.match(/[^.;]+[.;]?/g) || [txt]) { const u = new SpeechSynthesisUtterance(part); u.lang = 'vi-VN'; if (VOICE) u.voice = VOICE; u.rate = 0.95; speechSynthesis.speak(u); }
+  return true;
+}
+function stopSpeak() { try { speechSynthesis.cancel(); } catch (e) {} }
+// ---- Chế độ nắng: nền đen đặc, chữ to đậm, mô hình đậm hơn ----
+let SUN = false; try { SUN = localStorage.getItem('sun') === '1'; } catch (e) {}
+function applySun() { document.body.classList.toggle('sun', SUN); const b = $('#tb-sun'); b && b.classList.toggle('on', SUN); }
+function showInfo(inf) { placeInfo(); lastInfo = inf; if (!inf) stopSpeak();
   const el = $('#info'); if (!inf) { el.hidden = true; return; }
-  el.innerHTML = `<button class="x" aria-label="Đóng">×</button><h3>${inf.title}</h3><dl>${inf.rows.map(([k, v]) => k === '—' ? `<div class="sec">${v}</div>` : `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  el.innerHTML = `<button class="x" aria-label="Đóng">×</button><button class="say" aria-label="Nghe đọc">🔊 Nghe</button><h3>${inf.title}</h3><dl>${inf.rows.map(([k, v]) => k === '—' ? `<div class="sec">${v}</div>` : `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
   el.hidden = false;
 }
-$('#info').addEventListener('click', e => { if (e.target.classList.contains('x')) showInfo(null); });
+$('#info').addEventListener('click', e => { if (e.target.classList.contains('x')) showInfo(null);
+  if (e.target.classList.contains('say')) { if (!speak(lastInfo)) e.target.textContent = 'Máy không hỗ trợ đọc'; } });
 
 function openTag(tok) {
+  tok = tagKey(tok);
   const t = TAGS[tok]; if (!t) return false;
   curTag = tok; curEl = ELEMS[t.el];
   $('#el-title').textContent = curEl.title; $('#el-sub').textContent = curEl.sub; $('#el-face').textContent = 'Tem: ' + t.face;
@@ -582,7 +644,7 @@ let tagMark = null;
 function markTag(on) {
   if (tagMark) { scene.remove(tagMark); tagMark = null; }
   if (!on || !curTag) return;
-  const t = TAGS[curTag], s = SITE.qrSize, u = W(...t.u).sub(W(0,0,0)), v = W(...t.v).sub(W(0,0,0)), o = W(...t.o);
+  const t = TAGS[curTag], s = qrS(curTag), u = W(...t.u).sub(W(0,0,0)), v = W(...t.v).sub(W(0,0,0)), o = W(...t.o);
   const n = new THREE.Vector3().crossVectors(u, v);
   const g = new THREE.PlaneGeometry(s, s), m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color: 0xffd23f, side: THREE.DoubleSide}));
   const mtx = new THREE.Matrix4().makeBasis(u, v.clone().negate(), n.clone().negate()); m.quaternion.setFromRotationMatrix(mtx); m.position.copy(o).addScaledVector(n, -0.004);
@@ -744,7 +806,7 @@ function onDetect(ev) {
   if (!r || !r.loc) return;
   const tok = parseTok(r.text); if (!tok || !TAGS[tok]) { setStatus('Tem không thuộc dự án này', 'bad'); return; }
   if (tok !== lastTok) { lastTok = tok; lastTokAt = performance.now(); }   // tem khác (cột khác, mặt khác): cùng hệ toạ độ → căn lại toàn bộ mô hình
-  const s = SITE.qrSize / 2, sc = r.sc, L = r.loc;
+  const s = qrS(tok) / 2, sc = r.sc, L = r.loc;
   const dst = [L.topLeftCorner, L.topRightCorner, L.bottomRightCorner, L.bottomLeftCorner].map(p => [p.x / sc, p.y / sc]);
   const H = homography([[-s, -s], [s, -s], [s, s], [-s, s]], dst); if (!H) return;
   K = intrinsics(video.videoWidth, video.videoHeight); setProj(K);
@@ -761,7 +823,9 @@ function onDetect(ev) {
   const tg = TAGS[tok], who = tg.col ? `cột ${tg.col.replace('-a', '')}` : tok;
   setStatus(`Đang bám tem ${who} ✓ · cách ${dist.toFixed(1)} m${tok !== curTag && performance.now() - lastTokAt < 3000 ? ' · ĐÃ CĂN LẠI theo tem này' : ' · chạm cấu kiện để xem thông số'}`, 'ok');
 }
-function parseTok(text) { if (!text) return null; const m = text.match(/#([A-Za-z0-9]+)\s*$/) || text.match(/^([A-Za-z0-9]+)$/); return m ? m[1] : null; }
+function parseTok(text) { if (!text) return null; const m = text.match(/#([A-Za-z0-9]+)\s*$/) || text.match(/^([A-Za-z0-9]+)$/); return m ? tagKey(m[1]) : null; }
+function tagKey(t) { if (!t) return t; if (TAGS[t]) return t; const U = t.toUpperCase(); return Object.keys(TAGS).find(k => k.toUpperCase() === U) || t; }
+const qrS = tok => (TAGS[tok] && TAGS[tok].qs) || SITE.qrSize;
 function pred() {   // tư thế hiện tại: lần thấy tem gần nhất + xoay con quay
   if (!poseCam) return null;
   if (!haveGyro || !lostQ) return poseCam;
@@ -930,6 +994,10 @@ $('#b-3d-next').onclick = () => start3D('next');
 $('#b-3d-built').onclick = () => start3D('built');
 $('#b-nt').onclick = showNT;
 $('#sn-prev').onclick = () => stepGo(-1); $('#sn-next').onclick = () => stepGo(1);
+$('#tb-sun').onclick = () => { SUN = !SUN; try { localStorage.setItem('sun', SUN ? '1' : '0'); } catch (e) {} applySun(); if (cur && curMode) setContent(curEl[curMode].scene); };
+applySun();
+// giữ màn hình sáng khi đang xem AR / 3D
+let WL = null; async function keepAwake(on) { try { if (on && !WL && navigator.wakeLock) { WL = await navigator.wakeLock.request('screen'); WL.addEventListener('release', () => { WL = null; }); } else if (!on && WL) { WL.release(); WL = null; } } catch (e) {} }
 $('#nt-back').onclick = goHome;
 $('#tb-back').onclick = goHome;
 $('#b-scan').onclick = async () => {   // mở camera chưa biết tem: quét để nhận diện
@@ -956,7 +1024,7 @@ $('#tb-set').onclick = () => { $('#settings').hidden = !$('#settings').hidden; }
   try { const r = await fetch('data/nghiem_thu.json', {cache: 'no-cache'}); if (r.ok) NT = await r.json(); } catch (e) {}
   const tok = (location.hash || '').slice(1) || qs.get('t') || '';
   if (tok && openTag(tok)) {} else curEl = null;
-  goHome(); inAppNote();
+  goHome(); inAppNote(); loadLive(); setInterval(loadLive, 120000);
   if (qs.get('xr') && curEl) { const m = $('#xr-msg'); m.textContent = 'Đã mở trong App Clip – bấm nút "AR bám không gian" để bắt đầu.'; m.hidden = false; }
   if (qs.get('auto')) { const m = qs.get('auto'); m.startsWith('3d') ? start3D(m.slice(2)) : startAR(m); }
   loop();

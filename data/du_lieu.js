@@ -66,10 +66,10 @@ const ELEMS = {
       const ax = hx - 0.065, ay = hy - 0.065;   // thép góc (lớp bảo vệ + đai + nửa thanh)
       // chân thép góc trái → phải khi đứng nhìn vào mặt có tem (bên phải = u)
       const L = [c.x + d[0] * ax - u[0] * ax, c.y + d[1] * ay - u[1] * ay, z1], R = [c.x + d[0] * ax + u[0] * ax, c.y + d[1] * ay + u[1] * ay, z1];
-      TAGS['T1' + c.id.replace(/[^A-Za-z0-9]/g, '') + F] = {el, col: c.id, face: `Lồng thép cột ${c.id}, ${nm}`, o: [+ox.toFixed(4), +oy.toFixed(4), zt], u, v: [0, 0, -1], xrPts: [L, R]};
+      TAGS['T1' + c.id.replace(/[^A-Za-z0-9]/g, '') + F] = {el, col: c.id, qs: 0.12, face: `Lồng thép cột ${c.id}, ${nm}`, o: [+ox.toFixed(4), +oy.toFixed(4), zt], u, v: [0, 0, -1], xrPts: [L, R]};
     }
   }
-  for (const k of ['C1a1E', 'C1a1N', 'C1a1W', 'C1a1S']) if (TAGS[k]) TAGS[k].col = 'C1-a';
+  for (const k of ['C1a1E', 'C1a1N', 'C1a1W', 'C1a1S']) if (TAGS[k]) { TAGS[k].col = 'C1-a'; TAGS[k].qs = 0.12; }
 })();
 
 // Biện pháp: cốp pha nhôm Kumkang cho cột, vách, dầm, sàn – mỗi đợt đổ toàn khối "cột tầng n + sàn tầng n+1" (checklist NCC Rev06).
