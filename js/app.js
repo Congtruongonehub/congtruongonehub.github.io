@@ -525,9 +525,36 @@ function stepGo(d) {
   showInfo(stepInfo(st[i], (cur.userData.bom || {})[st[i].id] || []));
   const b = document.querySelector(`.step[data-id="${st[i].id}"]`); b && b.scrollIntoView({inline: 'center', behavior: 'smooth'});
 }
-function navText() { const el = $('#sn-t'); if (!el || !cur) return; const st = cur.userData.steps, on = st.map((x, i) => shown.has(x.id) ? i + 1 : 0).filter(Boolean);
+function navText() { renderSpecs(); const el = $('#sn-t'); if (!el || !cur) return; const st = cur.userData.steps, on = st.map((x, i) => shown.has(x.id) ? i + 1 : 0).filter(Boolean);
   $('#stepnav').hidden = st.length < 2; el.textContent = on.length === 1 ? `Bước ${on[0]}/${st.length}: ${st[on[0] - 1].name}` : `${on.length} bước đang hiện / ${st.length}`;
   $('#sn-prev').disabled = !on.length || on[0] === 1; $('#sn-next').disabled = !on.length || on[on.length - 1] === st.length; }
+// ---- Bảng THÔNG SỐ luôn hiện trên màn hình: cấu kiện đang quét + bước đang xem ----
+function specRows() {
+  const t = curTag && TAGS[curTag]; if (!t) return [];
+  const cid = t.col || (curEl && curEl.col), c = cid && MD.ALLCOLS.find(q => q.id === cid), rows = [];
+  const lv = t.o[2] < 5 ? 0 : t.o[2] < 12 ? 2 : 3, z0 = LV[['1FL', '2FL', '3FL', '4FL'][lv]], z1n = LV[['2FL', '3FL', '4FL', '5FL'][lv]];
+  if (c) {
+    rows.push(['Cột', `${c.id} (${c.type}) · ${mm(c.b)}×${mm(c.h)}`]);
+    const r = (MD.SCH[c.type] || []).find(e => lv >= e[0] && lv < e[1]);
+    if (r) { rows.push(['Thép dọc', `${r[2]}Ø${r[3]} CB500-V`], ['Đai', `Ø${r[4]}a${r[5]} · a200 vùng nút`], ['Nối chồng', `41Ø = ${41 * r[3]} mm từ +100, so le 2 nhóm ≤ 50%`]); }
+    else rows.push(['Thép', 'Chưa có bảng thép loại cột này – cần bản vẽ']);
+    rows.push(['Lớp bảo vệ', '40 mm (tới mép đai)'], ['Cao độ', `Sàn ${fmtLv(z0)} → đáy dầm ≈ ${fmtLv(z1n - 0.7)}${lv === 0 ? ' (tạm)' : ''}`]);
+  }
+  const st = cur && cur.userData.steps.filter(x => shown.has(x.id));
+  if (st && st.length === 1) {
+    const x = st[0], S = {done: 'Đã xong', now: 'Đang làm', todo: 'Sắp tới'}[stepStatus(x)];
+    rows.push(['Bước', `${x.name} · ${S}`]);
+    if (/Cốp pha/i.test(x.name)) rows.push(['Cốp pha', 'Tấm W2450 + tấm mở rộng · chốt nêm @300'], ['La', '@300 trong 1,2 m dưới · @600 phía trên (sơ bộ)'], ['Gông', 'Xà gồ 50×50 tại +0,3 / 1,2 / 2,1 / 3,0 m'], ['Thẳng đứng', '≤ H/1000']);
+    if (/bê tông/i.test(x.name)) rows.push(['Đổ', 'Từng lớp 0,4–0,5 m · dùng ống đổ'], ['Mạch ngừng', 'Tại đáy dầm, đục nhám trước khi đổ dầm sàn']);
+    if (/Thép cột/i.test(x.name)) rows.push(['Con kê', '≥ 4 cái/m² mỗi mặt']);
+  }
+  return rows;
+}
+function renderSpecs() {
+  const el = $('#specs'); if (!el) return; const rows = specRows();
+  el.hidden = !rows.length || view === 'home';
+  el.querySelector('dl').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+}
 function applySteps() { if (!cur) return; for (const ch of cur.children) if (ch.userData.step) ch.visible = shown.has(ch.userData.step); }
 
 // ---------- giao diện ----------
@@ -994,7 +1021,9 @@ $('#b-3d-next').onclick = () => start3D('next');
 $('#b-3d-built').onclick = () => start3D('built');
 $('#b-nt').onclick = showNT;
 $('#sn-prev').onclick = () => stepGo(-1); $('#sn-next').onclick = () => stepGo(1);
-$('#tb-sun').onclick = () => { SUN = !SUN; try { localStorage.setItem('sun', SUN ? '1' : '0'); } catch (e) {} applySun(); if (cur && curMode) setContent(curEl[curMode].scene); };
+$('#sp-tog').onclick = () => { const el = $('#specs'); el.classList.toggle('min'); $('#sp-tog').textContent = el.classList.contains('min') ? '📋 Thông số ▸' : '📋 Thông số ▾'; };
+$('#sp-say').onclick = () => speak({title: 'Thông số', rows: specRows()});
+$('#tb-sun').onclick = () => { SUN = !SUN; try { localStorage.setItem('sun', SUN ? '1' : '0'); } catch (e) {} applySun(); if (cur && curMode) { const keep = new Set(shown); setContent(curEl[curMode].scene); shown.clear(); keep.forEach(x => shown.add(x)); applySteps(); renderSteps(); } };
 applySun();
 // giữ màn hình sáng khi đang xem AR / 3D
 let WL = null; async function keepAwake(on) { try { if (on && !WL && navigator.wakeLock) { WL = await navigator.wakeLock.request('screen'); WL.addEventListener('release', () => { WL = null; }); } else if (!on && WL) { WL.release(); WL = null; } } catch (e) {} }

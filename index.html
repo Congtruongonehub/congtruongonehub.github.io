@@ -106,6 +106,14 @@ body.sun .step{background:#000;border-width:2px;opacity:1}body.sun .step span{fo
 body.sun #stepnav span{font-size:15px;font-weight:700;border:2px solid var(--acc)}
 body.sun .top .tt b{font-size:19px}body.sun .top .tt span{font-size:15px}
 body.sun .top{background:#000}
+#specs{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 112px);width:min(64vw,300px);max-height:46vh;overflow:auto;padding:8px 10px;border-radius:12px;background:rgba(14,18,22,.78);border:1px solid #3a4652;z-index:2}
+#specs .sp-h{display:flex;gap:6px;justify-content:space-between}
+#specs button{min-height:32px;border:0;border-radius:999px;padding:0 10px;background:#2a333d;color:var(--fg);font-size:12.5px;font-weight:700;cursor:pointer}
+#specs dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:12.5px;line-height:1.3}
+#specs dt{color:var(--acc);white-space:nowrap}#specs dd{margin:0;color:#fff}
+#specs.min dl{display:none}#specs.min{width:auto}
+body.sun #specs{background:#000;border:2px solid var(--acc)}body.sun #specs dl{font-size:14px;font-weight:700}
+body.mxr #specs{top:calc(env(safe-area-inset-top) + 168px)}
 /* ---- AR bám không gian (WebXR) ---- */
 #xr-tem{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 120px);max-width:calc(100% - 32px);min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--acc);background:var(--panel);color:var(--fg);font-size:14px}
 .big.xr{border-color:#4a6b8a;background:#18283a}
@@ -152,6 +160,7 @@ body.mxr #gl,body.mxr #cam{visibility:hidden}
     <button class="ic" id="tb-set" aria-label="Hiệu chỉnh">⚙</button>
   </div>
   <div id="status" class="status"></div>
+  <div id="specs" hidden><div class="sp-h"><button id="sp-tog">📋 Thông số ▾</button><button id="sp-say" aria-label="Nghe thông số">🔊</button></div><dl></dl></div>
   <div id="settings" hidden>
     <b>Hiệu chỉnh góc camera</b>
     <p class="note">Nếu hình 3D lệch to/nhỏ so với thực tế khi đứng xa tem, kéo thanh này cho khớp. Máy sẽ nhớ.</p>
