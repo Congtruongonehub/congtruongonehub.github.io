@@ -37,12 +37,25 @@ const XR = (() => {
     return anchorFrom(tok, temXR(V(p.x, p.y, p.z), V(0, -1, 0), toCol.clone().negate()));
   }
 
+  // căn bằng 2 điểm trên sàn (chân thép góc): xoay quanh trục đứng + dời; m1, m2 toạ độ mặt bằng, p1, p2 điểm XR
+  function solveTwo(m1, m2, p1, p2) {
+    const A = W(...m1), B = W(...m2), dm = B.clone().sub(A), dx = p2.clone().sub(p1);
+    const ang = Math.atan2(-dx.z, dx.x) - Math.atan2(-dm.z, dm.x);
+    const R = new THREE.Matrix4().makeRotationY(ang), mid = A.clone().add(B).multiplyScalar(0.5).applyMatrix4(R);
+    const tgt = p1.clone().add(p2).multiplyScalar(0.5);
+    return new THREE.Matrix4().makeTranslation(tgt.x - mid.x, tgt.y - mid.y, tgt.z - mid.z).multiply(R);
+  }
+  const twoPt = tok => !!(TAGS[tok] && TAGS[tok].xrPts);
   // ---------- giao diện ----------
   const $ = s => document.querySelector(s);
   function say(t, k) { setStatus(t, k); }
   function guide() {
     if (!curTag) return;
     const fl = isFloor(curTag);
+    if (twoPt(curTag)) {
+      say(stage === 0 ? 'Đứng nhìn vào mặt có tem. Đưa dấu + vào CHÂN thanh thép GÓC TRÁI (sát mặt sàn) → bấm "Ghim"' : 'Đưa dấu + vào CHÂN thanh thép GÓC PHẢI của cùng mặt đó (sát sàn) → bấm "Ghim"', 'wait');
+      $('#xr-pin').textContent = stage === 0 ? 'Ghim góc trái' : 'Ghim góc phải'; return;
+    }
     if (stage === 0) say(fl ? 'Đưa dấu + vào TÂM tem trên sàn → bấm "Ghim tâm tem"' : 'Đứng chính diện tem, cách 1–1,5 m. Đưa dấu + vào TÂM mã QR → bấm "Ghim tâm tem"', 'wait');
     else if (stage === 1) say('Đưa dấu + lên MẶT CỘT phía mũi tên chỉ (giữa mặt, thấp) – hoặc vạch sơn chân cột phía xa nếu chưa có cột → bấm "Ghim hướng"', 'wait');
     $('#xr-pin').textContent = stage === 1 ? 'Ghim hướng' : 'Ghim tâm tem';
@@ -91,6 +104,12 @@ const XR = (() => {
   function pin() {
     if (!lastHit) { say('Chưa dò được bề mặt – di chuyển máy chậm qua lại vài giây cho máy nhận mặt cột / sàn', 'bad'); return; }
     const fl = isFloor(curTag);
+    if (twoPt(curTag)) {
+      if (Math.abs(hitNormal().y) < 0.7) { say('Dấu + đang không nằm trên mặt sàn – hạ máy, ngắm sát chân thép trên sàn', 'bad'); return; }
+      if (stage === 0) { first = hitPoint(); stage = 1; guide(); }
+      else { const P = TAGS[curTag].xrPts; apply(solveTwo(P[0], P[1], first, hitPoint())); }
+      return;
+    }
     if (stage === 0 && !fl) apply(solveWall(curTag, hitPoint(), hitNormal(), camFwd()));
     else if (stage === 0) { first = hitPoint(); stage = 1; guide(); }
     else if (stage === 1) apply(solveFloor(curTag, first, hitPoint(), hitNormal()));
@@ -137,5 +156,5 @@ const XR = (() => {
     $('#b-xr').onclick = () => start('next');
     refreshButton();
   }
-  return {start, end, supported, refreshButton, _t: {temModel, solveWall, solveFloor, isFloor}};
+  return {start, end, supported, refreshButton, _t: {temModel, solveWall, solveFloor, isFloor, solveTwo}};
 })();

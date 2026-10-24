@@ -19,8 +19,14 @@ const TAGS = {
   // Tem gắn trên LỒNG THÉP cột C1 tầng 1 (trệt → T2), cột đang buộc thép (24/10/2026).
   // Tem dán trên tấm cứng, buộc vào đai mặt ngoài lồng thép: mặt tem lùi vào trong mặt cột ≈ 35 mm (lớp bảo vệ 40 – tấm 5).
   // Tâm tem cao 1500 trên mặt sàn trệt → +2.825. Tháo tem trước khi đóng cốp pha.
-  'C1a1E': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.B', o: [0.56, 0.07, 2.825], u: [0, 1, 0], v: [0, 0, -1]},
-  'C1a1N': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.2', o: [0.07, 0.56, 2.825], u: [-1, 0, 0], v: [0, 0, -1]},
+  'C1a1E': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.B', o: [0.56, 0.07, 2.825], u: [0, 1, 0], v: [0, 0, -1],
+    xrPts: [[0.5305, -0.3905, 1.325], [0.5305, 0.5305, 1.325]]},   // AR không gian: chân thép góc TRÁI rồi góc PHẢI của mặt có tem (đứng nhìn vào tem)
+  'C1a1N': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng về trục 2.2', o: [0.07, 0.56, 2.825], u: [-1, 0, 0], v: [0, 0, -1],
+    xrPts: [[0.5305, 0.5305, 1.325], [-0.3905, 0.5305, 1.325]]},
+  'C1a1W': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng ra trục 2.A (phía ngoài)', o: [-0.42, 0.07, 2.825], u: [0, -1, 0], v: [0, 0, -1],
+    xrPts: [[-0.3905, 0.5305, 1.325], [-0.3905, -0.3905, 1.325]]},
+  'C1a1S': {el: 'C1a-T1', face: 'Lồng thép cột, mặt hướng ra trục 2.1 (phía ngoài)', o: [0.07, -0.42, 2.825], u: [1, 0, 0], v: [0, 0, -1],
+    xrPts: [[-0.3905, -0.3905, 1.325], [0.5305, -0.3905, 1.325]]},
 };
 
 const ELEMS = {

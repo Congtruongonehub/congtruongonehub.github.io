@@ -298,10 +298,45 @@ function buildContext(name) {
       const h = t / 2; g.add(box(Math.min(x1, x2) - h, Math.max(x1, x2) + h, Math.min(y1, y2) - h, Math.max(y1, y2) + h, z0, z1, m)); }
   };
   const z3 = LV['3FL'], z4 = LV['4FL'], z5 = LV['5FL'];
-  if (name === 'lift1' || name === 'xrayCol1') { const z1 = LV['1FL']; fl(z1 - 0.25, z1, 0.16); }
+  if (name === 'lift1' || name === 'xrayCol1') { /* đã có lớp liên kết tổng thể trong cảnh */ }
   else if (name === 'lift4' || name === 'xraySlabT4') { fl(z4 - 0.22, z4, 0.16); cols(z4, z5 - 0.22, 0.12); fl(z5 - 0.22, z5, 0.06); }
   else { fl(z3 - 0.22, z3, 0.1); cols(z3, z4 - 0.22, 0.16); fl(z4 - 0.22, z4, 0.12); }
   g.userData.context = true; return g;
+}
+
+// Lớp LIÊN KẾT TỔNG THỂ tầng trệt (hiện cả ở AR): toàn bộ cột, vách lõi tầng 1 + dầm sàn T2; dầm nối vào cột C1 tô nổi.
+// Lưới cột, dầm lấy theo bản vẽ tầng điển hình (cùng lưới trục) – CHỜ bản vẽ kết cấu sàn T2 để chỉnh đúng dầm tầng 2.
+function buildLinks(z1, z2, focus) {
+  const g = new THREE.Group(), near = (x, y) => Math.hypot(x - focus.x, y - focus.y);
+  const mC = new THREE.MeshLambertMaterial({color: 0x9fb3c8, transparent: true, opacity: 0.22, depthWrite: false});
+  const mW = new THREE.MeshLambertMaterial({color: 0x7f93a8, transparent: true, opacity: 0.2, depthWrite: false});
+  const mB = new THREE.MeshLambertMaterial({color: 0xb9c6d3, transparent: true, opacity: 0.16, depthWrite: false});
+  const mK = new THREE.MeshLambertMaterial({color: 0xff9a3c, transparent: true, opacity: 0.5, depthWrite: false});
+  const edge = (m, col) => { const l = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({color: col})); l.position.copy(m.position); return l; };
+  const top = z2 - 0.7;
+  for (const c of MD.ALLCOLS) {
+    if (near(c.x, c.y) < 0.1) continue;
+    const b = box(c.x - c.b/2, c.x + c.b/2, c.y - c.h/2, c.y + c.h/2, z1, top, mC);
+    b.userData.info = () => ({title: `Cột ${c.id} · ${c.type} · ${mm(c.b)}×${mm(c.h)}`, rows: [['Vị trí', `x = ${c.x.toFixed(2)}, y = ${c.y.toFixed(2)} m · cách cột C1 ${near(c.x, c.y).toFixed(1)} m`], ['Tầng', `Tầng 1: ${fmtLv(z1)} → đáy dầm T2 ≈ ${fmtLv(top)}`], ['Lưu ý', 'Lưới cột theo bản vẽ tầng điển hình – đối chiếu bản vẽ tầng trệt']]});
+    g.add(b, edge(b, 0x9fb3c8));
+    if (near(c.x, c.y) < 16) g.add(label(c.id.replace('-a', ''), c.x, c.y, top + 0.15, {fg: '#e8eef5', bg: 'rgba(30,40,52,.85)', h: 0.026}));
+  }
+  for (const k of MD.CORES) for (const [x1, y1, x2, y2, t] of k.walls) {
+    const h = t / 2, b = box(Math.min(x1, x2) - h, Math.max(x1, x2) + h, Math.min(y1, y2) - h, Math.max(y1, y2) + h, z1, z2 - 0.22, mW);
+    b.userData.info = () => ({title: `Vách lõi ${k.id}`, rows: [['Dày', `${mm(t)} mm`], ['Tầng', `Tầng 1: ${fmtLv(z1)} → ${fmtLv(z2)}`]]}); g.add(b);
+  }
+  for (const [did, o, c, bw, h, lo, hi] of MD.BEAMS_ALL) {
+    const EWb = o === 'EW', hits = EWb ? Math.abs(c - focus.y) < focus.h / 2 + 0.05 && lo <= focus.x + 0.6 && hi >= focus.x - 0.6
+                                     : Math.abs(c - focus.x) < focus.b / 2 + 0.05 && lo <= focus.y + 0.6 && hi >= focus.y - 0.6;
+    const b = EWb ? box(lo, hi, c - bw/2, c + bw/2, z2 - h, z2 - 0.22, hits ? mK : mB) : box(c - bw/2, c + bw/2, lo, hi, z2 - h, z2 - 0.22, hits ? mK : mB);
+    b.userData.info = () => ({title: `Dầm ${did} · ${mm(bw)}×${mm(h)}${hits ? ' – GỐI LÊN CỘT C1' : ''}`, rows: [['Phương', EWb ? 'Theo trục X' : 'Theo trục Y'], ['Đáy dầm', fmtLv(z2 - h)], ['Lưu ý', 'Dầm theo bản vẽ tầng điển hình – chờ bản vẽ sàn T2']]});
+    g.add(b); if (hits) { g.add(edge(b, 0xff9a3c)); const mx = EWb ? (focus.x + (lo + hi > 2 * focus.x ? 1.6 : -1.6)) : c, my = EWb ? c : (focus.y + (lo + hi > 2 * focus.y ? 1.6 : -1.6));
+      g.add(label(`Dầm ${did} ${mm(bw)}×${mm(h)} → cột C1`, mx, my, z2 - h - 0.12, {fg: '#151515', bg: 'rgba(255,154,60,.95)', h: 0.026})); }
+  }
+  const sl = box(BLD[0], BLD[1], BLD[2], BLD[3], z2 - 0.22, z2, new THREE.MeshLambertMaterial({color: COL.conc, transparent: true, opacity: 0.06, depthWrite: false}));
+  g.add(sl, edge(sl, 0x6b7785));
+  g.add(label('Sàn T2 ' + fmtLv(z2) + ' (tạm theo tầng điển hình)', focus.x + 2.2, focus.y + 2.2, z2 + 0.1, {fg: '#cfd8e3'}));
+  g.userData.links = true; return g;
 }
 
 function buildScene(name) {
@@ -377,10 +412,15 @@ function buildScene(name) {
       const alc = AL.column(C1, z1, top, EDGE); add('L1-2', alc.grp);
       root.userData.bom = {'L1-2': AL.bomRows(alc.bom)};
       const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, z1, top, ghost(COL.conc, 0.3)); cc.userData.info = () => infoCol(rec, 0); add('L1-3', cc);
+      // bước đổ bê tông: thể hiện các lớp đổ 0,5 m và ống đổ
+      { const g3 = new THREE.Group(); for (let zz = z1 + 0.5; zz < top - 0.05; zz += 0.5) { const r = box(C1.x - C1.b/2 - 0.012, C1.x + C1.b/2 + 0.012, C1.y - C1.h/2 - 0.012, C1.y + C1.h/2 + 0.012, zz - 0.01, zz + 0.01, lam(0x3ddc84)); g3.add(r); }
+        const tube = []; prismSeg(tube, W(C1.x, C1.y, z1 + 0.6), W(C1.x, C1.y, top + 1.2), 0.075); const tm = meshFrom(tube, lam(0x4a5560)); tm.userData.info = () => ({title: 'Ống đổ (vòi voi) Ø150', rows: [['Mục đích', 'Chiều cao rơi tự do ≈ 3,9 m > 1,5 m: dùng ống đổ chống phân tầng, nâng dần theo lớp'], ['Lớp đổ', 'Mỗi lớp 0,4–0,5 m, đầm dùi kỹ từng lớp']]}); g3.add(tm);
+        g3.add(label('Đổ từng lớp 0,5 m', C1.x + C1.b/2 + 0.6, C1.y, z1 + 1.0, {fg: '#151515', bg: 'rgba(61,220,132,.95)', h: 0.026})); g3.userData.step = 'L1-3'; root.add(g3); }
       if (e.lap) root.add(label(`Nối thép lên T2 ${fmtLv(e.lap.z0)} → ${fmtLv(e.lap.z2)}`, xr + 0.5, C1.y, (e.lap.z0 + e.lap.z2) / 2));
       root.add(label('Đáy dầm T2 ' + fmtLv(top) + ' (tạm)', xr + 0.5, C1.y, top));
     }
     root.add(label('Mặt sàn trệt ' + fmtLv(z1), C1.x + 1.6, C1.y + 1.6, z1 + 0.12, {fg: '#cfd8e3'}));
+    root.add(buildLinks(z1, z2, C1));
   } else if (name === 'xrayColT3') {
     const rec = colRec('C1-a'), e = rec.st[2];
     const cc = box(C1.x - C1.b/2, C1.x + C1.b/2, C1.y - C1.h/2, C1.y + C1.h/2, zT3, zT4 - 0.7, ghost(COL.conc, 0.18)); cc.userData.info = () => infoCol(rec, 2); root.add(cc);
@@ -435,7 +475,7 @@ function setContent(sceneName) {
   if (cur) scene.remove(cur);
   cur = buildScene(sceneName);
   if (view === '3d') cur.add(buildContext(sceneName));
-  else cur.traverse(o => { if (o.userData.only3d) o.visible = false; });
+  else { cur.traverse(o => { if (o.userData.only3d) o.visible = false; }); arLook(cur); }
   scene.add(cur);
   const isNext = curMode === 'next';
   shown.clear();
@@ -444,12 +484,28 @@ function setContent(sceneName) {
   for (const st of (isNext ? st0.slice(0, 1) : st0)) shown.add(st.id);
   applySteps(); renderSteps();
 }
+// Chế độ AR (camera): mô hình bán trong suốt để vẫn thấy cấu kiện thật phía sau, dễ đối chiếu
+function arLook(root, op = 0.5) {
+  root.traverse(o => { if (!o.material || o.userData.phantom || o.isSprite || (o.parent && o.parent.userData.links)) return;
+    const one = m => { if (m.colorWrite === false) return m; const c = m.clone(); c.transparent = true; c.opacity = Math.min(m.opacity ?? 1, op); c.depthWrite = false; return c; };
+    o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material); });
+}
+function stepGo(d) {
+  if (!cur) return; const st = cur.userData.steps; if (!st.length) return;
+  const on = st.map((x, i) => shown.has(x.id) ? i : -1).filter(i => i >= 0), i0 = on.length ? (d > 0 ? Math.max(...on) : Math.min(...on)) : -1;
+  const i = Math.max(0, Math.min(st.length - 1, i0 + d)); shown.clear(); shown.add(st[i].id); applySteps(); renderSteps();
+  showInfo(stepInfo(st[i], (cur.userData.bom || {})[st[i].id] || []));
+  const b = document.querySelector(`.step[data-id="${st[i].id}"]`); b && b.scrollIntoView({inline: 'center', behavior: 'smooth'});
+}
+function navText() { const el = $('#sn-t'); if (!el || !cur) return; const st = cur.userData.steps, on = st.map((x, i) => shown.has(x.id) ? i + 1 : 0).filter(Boolean);
+  $('#stepnav').hidden = st.length < 2; el.textContent = on.length === 1 ? `Bước ${on[0]}/${st.length}: ${st[on[0] - 1].name}` : `${on.length} bước đang hiện / ${st.length}`;
+  $('#sn-prev').disabled = !on.length || on[0] === 1; $('#sn-next').disabled = !on.length || on[on.length - 1] === st.length; }
 function applySteps() { if (!cur) return; for (const ch of cur.children) if (ch.userData.step) ch.visible = shown.has(ch.userData.step); }
 
 // ---------- giao diện ----------
 function show(id) { for (const el of document.querySelectorAll('.view')) el.hidden = el.id !== id; }
 function statusChip(s) { return {done: '<span class="chip ok">Đã xong</span>', now: '<span class="chip now">Đang làm</span>', todo: '<span class="chip">Sắp tới</span>'}[s]; }
-function renderSteps() {
+function renderSteps() { setTimeout(navText, 0);
   const box = $('#steps'), steps = cur ? cur.userData.steps : [];
   box.hidden = !steps.length;
   box.innerHTML = steps.map((st, i) => {
@@ -481,7 +537,7 @@ function stepInfo(st, bom) {
   if (bom && bom.length) rows.push(H('Thống kê cấu kiện (mô phỏng)'), ...bom);
   return {title: st.name, rows};
 }
-function placeInfo() { const sb = $('#steps'), el = $('#info'); if (!el) return; const h = sb && !sb.hidden ? sb.offsetHeight : 0; el.style.bottom = `calc(env(safe-area-inset-bottom) + ${Math.max(h, 12) + 10}px)`; el.style.maxHeight = `calc(100% - ${h + 150}px)`; }
+function placeInfo() { const sb = $('#steps'), el = $('#info'); if (!el) return; const sn = $('#stepnav'), h = (sb && !sb.hidden ? sb.offsetHeight : 0) + (sn && !sn.hidden ? 56 : 0); el.style.bottom = `calc(env(safe-area-inset-bottom) + ${Math.max(h, 12) + 10}px)`; el.style.maxHeight = `calc(100% - ${h + 150}px)`; }
 addEventListener('resize', () => placeInfo());
 function showInfo(inf) { placeInfo();
   const el = $('#info'); if (!inf) { el.hidden = true; return; }
@@ -512,7 +568,7 @@ function start3D(mode) {
   // nhìn từ trong nhà về góc trục 2.A/2.1: thấy rõ ô sàn quanh cột C1, phía sau là toàn sàn mờ
   const sc = curEl[mode].scene, zc = (sc === 'lift4' || sc === 'xraySlabT4' ? LV['4FL'] : LV['3FL']) + 2.0;
   let tgt, pos;
-  if (sc === 'lift1' || sc === 'xrayCol1') { const z1 = LV['1FL']; tgt = W(0.07, 0.07, z1 + 2.6); pos = W(7.4, 6.0, z1 + 2.4); }
+  if (sc === 'lift1' || sc === 'xrayCol1') { const z1 = LV['1FL']; tgt = W(1.5, 1.5, z1 + 2.4); pos = W(11, 9, z1 + 4.2); }
   else if (sc.startsWith('xrayCol')) { tgt = W(0.07, 0.07, zc); pos = W(3.2, 2.6, zc + 0.8); }
   else if (sc === 'propsT4') { tgt = W(4.0, 5.5, LV['3FL'] + 3.0); pos = W(10.5, 12.5, LV['3FL'] + 1.6); }   // đứng ở sàn T3 nhìn rừng cây chống dưới sàn T4
   else { tgt = W(4.5, 5.5, zc); pos = W(15, 16, zc + 5.5); }
@@ -593,8 +649,26 @@ function setProj(k) {
         0, 0, -1, 0);
   camAR.projectionMatrixInverse.copy(P).invert();
 }
+let BD = null; try { if ('BarcodeDetector' in window) BarcodeDetector.getSupportedFormats().then(f => { if (f.includes('qr_code')) BD = new BarcodeDetector({formats: ['qr_code']}); }).catch(() => {}); } catch (e) {}
+// góc mã theo thứ tự trên-trái, trên-phải, dưới-phải, dưới-trái của MÃ: chọn vòng quay khớp góc 3 ô định vị (dựa vào hướng con quay nếu có)
+function bdCorners(pts) {
+  // BarcodeDetector trả góc theo ảnh; tem đứng (mũi tên lên) và máy cầm dọc → góc trên-trái ảnh ≈ góc trên-trái mã
+  const c = pts.slice(), s = c.map(p => p.x + p.y); let k = s.indexOf(Math.min(...s));
+  const o = [0, 1, 2, 3].map(i => c[(k + i) % 4]);
+  // đảm bảo chiều kim đồng hồ trên ảnh
+  const cr = (o[1].x - o[0].x) * (o[3].y - o[0].y) - (o[1].y - o[0].y) * (o[3].x - o[0].x); if (cr < 0) [o[1], o[3]] = [o[3], o[1]];
+  return {topLeftCorner: o[0], topRightCorner: o[1], bottomRightCorner: o[2], bottomLeftCorner: o[3]};
+}
 function grabFrame() {
   const vw = video.videoWidth, vh = video.videoHeight; if (!vw) return;
+  const tg = curTag && TAGS[curTag], upright = tg && Math.abs(tg.v[2] + 1) < 1e-6;   // tem đứng: dùng bộ đọc nhanh
+  if (BD && upright) {
+    busy = true; const q = haveGyro ? devQuat.clone() : null;
+    BD.detect(video).then(r => { poseQ = q; const b = r && r[0];
+      onDetect({data: b && b.cornerPoints && b.cornerPoints.length === 4 ? {text: b.rawValue, loc: bdCorners(b.cornerPoints), sc: 1} : {text: null, loc: null, sc: 1}}); })
+      .catch(() => { BD = null; busy = false; });
+    return;
+  }
   const sc = Math.min(1, 960 / Math.max(vw, vh)), w = Math.round(vw * sc), h = Math.round(vh * sc);
   if (grab.width !== w || grab.height !== h) { grab.width = w; grab.height = h; }
   gctx.drawImage(video, 0, 0, w, h);
@@ -730,7 +804,8 @@ canvas.addEventListener('click', e => {
     if (!pred()) return; ray.setFromCamera({x: nx, y: ny}, camAR);
   } else { nx = (e.clientX - rc.left) / rc.width * 2 - 1; ny = -((e.clientY - rc.top) / rc.height * 2 - 1); ray.setFromCamera({x: nx, y: ny}, cam3D); }
   const objs = []; cur.traverse(o => { if (o.userData.info && (o.visible || o.userData.kind || o.userData.low)) { let p = o, vis = true; while (p && p !== cur) { if (!p.visible && p.userData.step) vis = false; p = p.parent; } if (vis) objs.push(o); } });
-  const hits = ray.intersectObjects(objs, false).filter(h => passClip(h.point));
+  const inLinks = o => { for (let p = o; p; p = p.parent) if (p.userData.links) return true; return false; };
+  const hits = ray.intersectObjects(objs, false).filter(h => passClip(h.point) || inLinks(h.object));
   const hit = hits.find(h => !h.object.userData.low) || hits[0];
   showInfo(hit ? hit.object.userData.info(hit) : null);
 });
@@ -850,6 +925,7 @@ $('#b-built').onclick = () => startAR('built');
 $('#b-3d-next').onclick = () => start3D('next');
 $('#b-3d-built').onclick = () => start3D('built');
 $('#b-nt').onclick = showNT;
+$('#sn-prev').onclick = () => stepGo(-1); $('#sn-next').onclick = () => stepGo(1);
 $('#nt-back').onclick = goHome;
 $('#tb-back').onclick = goHome;
 $('#b-scan').onclick = async () => {   // mở camera chưa biết tem: quét để nhận diện
